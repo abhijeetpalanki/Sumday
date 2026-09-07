@@ -66,31 +66,45 @@ function TileBase({ value, selected, dimmed, fresh, hinted, onPress }: Props) {
   const digits = String(value).length;
   const fontSize = digits <= 2 ? 34 : digits === 3 ? 29 : digits === 4 ? 24 : 20;
 
+  // Two nodes on purpose. The wrapper owns the layout animations that drive
+  // the merge choreography; the Pressable owns the press-scale and hint-pulse
+  // transform. Putting both on one node makes them fight over `transform` --
+  // Reanimated warns about exactly this, and the press scale is what loses.
   return (
-    <AnimatedPressable
+    <Animated.View
       entering={ZoomIn.springify().damping(16)}
       exiting={ZoomOut.duration(160)}
       layout={LinearTransition.springify().damping(18)}
-      onPressIn={() => {
-        press.value = withSpring(0.94, { damping: 18, stiffness: 320 });
-      }}
-      onPressOut={() => {
-        press.value = withSpring(1, { damping: 14, stiffness: 260 });
-      }}
-      onPress={onPress}
-      accessibilityRole="button"
-      accessibilityLabel={`Tile ${value}`}
-      accessibilityState={{ selected }}
-      style={[styles.tile, selected && styles.tileSelected, animated]}
+      style={styles.slot}
     >
-      <Text style={[styles.value, { fontSize }, selected && styles.valueSelected]} numberOfLines={1}>
-        {value}
-      </Text>
-    </AnimatedPressable>
+      <AnimatedPressable
+        onPressIn={() => {
+          press.value = withSpring(0.94, { damping: 18, stiffness: 320 });
+        }}
+        onPressOut={() => {
+          press.value = withSpring(1, { damping: 14, stiffness: 260 });
+        }}
+        onPress={onPress}
+        accessibilityRole="button"
+        accessibilityLabel={`Tile ${value}`}
+        accessibilityState={{ selected }}
+        style={[styles.tile, selected && styles.tileSelected, animated]}
+      >
+        <Text
+          style={[styles.value, { fontSize }, selected && styles.valueSelected]}
+          numberOfLines={1}
+        >
+          {value}
+        </Text>
+      </AnimatedPressable>
+    </Animated.View>
   );
 }
 
 const styles = StyleSheet.create({
+  // Spacing lives on the wrapper so the layout animation animates the gap,
+  // not the pressable's own transform.
+  slot: { margin: theme.space(1.5) },
   tile: {
     width: 92,
     height: 92,
@@ -99,7 +113,6 @@ const styles = StyleSheet.create({
     borderWidth: 2,
     alignItems: 'center',
     justifyContent: 'center',
-    margin: theme.space(1.5),
   },
   tileSelected: { backgroundColor: theme.color.tileActive },
   value: {

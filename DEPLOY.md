@@ -321,3 +321,26 @@ keeping the contact details in Account settings verified. Warnings go out at
 60, 30 and 7 days before closure — to the account owner's email, which is now
 the new Google account, which is why inviting your main address as Admin
 matters.
+
+---
+
+## Why there is no EAS Update (deliberate)
+
+`eas build` offers to install `expo-updates` and configure EAS Update. It was
+installed once and then removed on purpose.
+
+With it, the app calls `u.expo.dev` on every launch carrying a random install
+ID. That turns the Data safety answer from *no data collected* into a
+"Device or other IDs" disclosure, and makes the store copy's "no network
+requests at all" untrue. A Data safety declaration that doesn't match actual
+app behaviour is one of the most common Play rejections, and this is a first
+submission on a brand-new account.
+
+The trade was worth taking because over-the-air updates mostly pay off when
+you can DETECT problems, and v1 ships with no crash reporting and no
+analytics — a bug would reach you through a store review either way. The
+engine, which is the part that could silently produce a wrong puzzle, is the
+part that is verified.
+
+Add it in 1.0.1, together with crash reporting, and update both the privacy
+policy and the Data safety form in the same release.

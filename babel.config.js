@@ -1,10 +1,11 @@
 module.exports = function (api) {
   api.cache(true);
   return {
-    // babel-preset-expo injects the react-native-worklets Babel plugin for you
-    // on SDK 54+. If animations ever throw a "worklet not found" error after a
-    // dependency change, add 'react-native-worklets/plugin' as the LAST entry
-    // of a `plugins` array here.
+    // Do NOT add 'react-native-worklets/plugin' here. babel-preset-expo adds
+    // it automatically whenever react-native-worklets is installed — its
+    // `worklets` option defaults to true and covers Reanimated 4, which uses
+    // the standalone worklets package. Listing it again registers the plugin
+    // twice.
     presets: ['babel-preset-expo'],
   };
 };
