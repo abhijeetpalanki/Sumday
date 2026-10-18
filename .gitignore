@@ -23,3 +23,10 @@ play-service-account.json
 *.log
 npm-debug.*
 yarn-error.*
+DEPLOY.md
+
+# Graphify (local knowledge graph output)
+graphify-out/
+
+# Local EAS build downloads (signed .aab/.apk)
+Builds/
