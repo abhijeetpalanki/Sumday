@@ -8,8 +8,16 @@
 
 import type { SlotResult } from './state/storage';
 
-/** Filled in once the App Store / Play listings are live. */
-export const SHARE_URL = '';
+/**
+ * Deliberately the landing page, not a store URL.
+ *
+ * A share card is permanent -- a message sent today still exists in six
+ * months, on every phone it was forwarded to, pointing wherever this string
+ * pointed when it was sent. Owning the destination means we can redirect it
+ * later (to Play, to the App Store, to whichever the visitor's device wants)
+ * without shipping an app update and without orphaning old shares.
+ */
+export const SHARE_URL = 'https://sumday-abhiyourpal.netlify.app';
 
 export function formatTime(ms: number): string {
   const total = Math.max(0, Math.floor(ms / 1000));
