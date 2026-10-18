@@ -84,6 +84,9 @@ def main():
     # Splash mark: transparent, sits on the splash background colour.
     draw_mark(512).save(ASSETS / "splash-icon.png")
 
+    # Play Store app icon: exactly 512x512, PNG, opaque.
+    draw_mark(512, bg=BG).convert("RGB").save(ASSETS / "play-icon-512.png")
+
     # Play Store feature graphic, exactly 1024x500.
     fg = Image.new("RGB", (1024, 500), BG)
     mark = draw_mark(340)
@@ -96,7 +99,8 @@ def main():
     d.text((522, 286), "A number puzzle, once a day.", font=_font("Poppins-Medium.ttf", 28), fill=TEXT_DIM)
     fg.save(ASSETS / "play-feature-graphic.png")
 
-    for name in ("icon.png", "adaptive-icon.png", "splash-icon.png", "play-feature-graphic.png"):
+    for name in ("icon.png", "adaptive-icon.png", "splash-icon.png",
+                 "play-icon-512.png", "play-feature-graphic.png"):
         p = ASSETS / name
         with Image.open(p) as im:
             print(f"  {name:28} {im.size[0]}x{im.size[1]}  {im.mode}  {p.stat().st_size // 1024} KB")
