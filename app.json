@@ -55,6 +55,18 @@
         "projectId": "f7a08bc3-c13f-464a-80b4-436067d5f2b5"
       }
     },
-    "owner": "abhiyourpalappss-team"
+    "owner": "abhiyourpalappss-team",
+    "web": {
+      "output": "single",
+      "bundler": "metro",
+      "favicon": "./assets/favicon.png",
+      "name": "Sumday",
+      "shortName": "Sumday",
+      "themeColor": "#08090D",
+      "backgroundColor": "#08090D"
+    },
+    "experiments": {
+      "baseUrl": "/play"
+    }
   }
 }

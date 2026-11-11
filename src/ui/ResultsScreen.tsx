@@ -1,5 +1,5 @@
 import { useCallback, useEffect, useState } from 'react';
-import { Share, StyleSheet, Text, View } from 'react-native';
+import { AccessibilityInfo, StyleSheet, Text, View } from 'react-native';
 import Animated, { FadeIn, FadeInDown } from 'react-native-reanimated';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import * as Haptics from 'expo-haptics';
@@ -7,6 +7,7 @@ import * as Haptics from 'expo-haptics';
 import { theme } from './theme';
 import { Button } from './components/Button';
 import { buildShareText, formatTime, slotEmoji } from '../share';
+import { shareResult } from '../shareResult';
 import { msUntilNextLocalMidnight } from '../engine/daily';
 import type { DailyProgress, Stats } from '../state/storage';
 import { effectiveStreak } from '../state/storage';
@@ -32,6 +33,7 @@ function countdown(ms: number): string {
 export function ResultsScreen({ puzzleNumber, todayKey, progress, stats, onStats, onExit }: Props) {
   const insets = useSafeAreaInsets();
   const [untilTomorrow, setUntilTomorrow] = useState(() => msUntilNextLocalMidnight());
+  const [shareLabel, setShareLabel] = useState<string | null>(null);
 
   useEffect(() => {
     const id = setInterval(() => setUntilTomorrow(msUntilNextLocalMidnight()), 1000);
@@ -51,9 +53,22 @@ export function ResultsScreen({ puzzleNumber, todayKey, progress, stats, onStats
       elapsedMs: progress.elapsedMs,
       streak,
     });
-    // Errors here are almost always the user dismissing the sheet.
-    Share.share({ message }).catch(() => {});
+    void shareResult(message).then((outcome) => {
+      const label =
+        outcome === 'copied' ? 'Copied to clipboard' : outcome === 'failed' ? 'Couldn’t share. Try again' : null;
+      if (label) {
+        setShareLabel(label);
+        AccessibilityInfo.announceForAccessibility(label);
+      }
+    });
   }, [progress.elapsedMs, progress.results, puzzleNumber, streak]);
+
+  // The confirmation reads on the button itself, then reverts.
+  useEffect(() => {
+    if (shareLabel === null) return;
+    const id = setTimeout(() => setShareLabel(null), 2200);
+    return () => clearTimeout(id);
+  }, [shareLabel]);
 
   const headline =
     atPar === 5
@@ -107,7 +122,7 @@ export function ResultsScreen({ puzzleNumber, todayKey, progress, stats, onStats
       </Animated.View>
 
       <Animated.View entering={FadeInDown.delay(800).duration(400)} style={styles.actions}>
-        <Button label="Share result" variant="primary" onPress={handleShare} />
+        <Button label={shareLabel ?? 'Share result'} variant="primary" onPress={handleShare} />
         <Button label="Statistics" onPress={onStats} />
         <Button label="Back" variant="ghost" onPress={onExit} />
       </Animated.View>

@@ -1,5 +1,5 @@
 import { useCallback, useEffect, useMemo, useState } from 'react';
-import { ActivityIndicator, AppState, StyleSheet, View } from 'react-native';
+import { ActivityIndicator, AppState, Platform, StyleSheet, View } from 'react-native';
 import { StatusBar } from 'expo-status-bar';
 import { SafeAreaProvider } from 'react-native-safe-area-context';
 
@@ -201,7 +201,13 @@ export default function App() {
 }
 
 const styles = StyleSheet.create({
-  root: { flex: 1, backgroundColor: theme.color.bg },
+  root: {
+    flex: 1,
+    backgroundColor: theme.color.bg,
+    // On a desktop browser, keep the phone-shaped layout instead of stretching
+    // tiles across a 1440px window.
+    ...Platform.select({ web: { width: '100%', maxWidth: 520, alignSelf: 'center' } as const, default: {} }),
+  },
   loading: {
     flex: 1,
     backgroundColor: theme.color.bg,

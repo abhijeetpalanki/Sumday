@@ -10,23 +10,30 @@
     "ios": "expo start --ios",
     "typecheck": "tsc --noEmit",
     "verify": "tsc -p tsconfig.verify.json && node .verify-out/scripts/verify.js",
-    "doctor": "npx expo-doctor"
+    "doctor": "npx expo-doctor",
+    "web": "expo start --web",
+    "build:web": "expo export -p web && workbox generateSW workbox-config.js",
+    "preview:web": "node scripts/preview-web.mjs"
   },
   "dependencies": {
+    "@expo/metro-runtime": "~57.0.18",
     "@react-native-async-storage/async-storage": "2.2.0",
-    "expo": "~57.0.9",
-    "expo-haptics": "~57.0.2",
-    "expo-splash-screen": "~57.0.8",
+    "expo": "~57.0.32",
+    "expo-haptics": "~57.0.3",
+    "expo-splash-screen": "~57.0.11",
     "expo-status-bar": "~57.0.1",
     "react": "19.2.3",
+    "react-dom": "19.2.3",
     "react-native": "0.86.3",
     "react-native-reanimated": "4.5.1",
     "react-native-safe-area-context": "~5.7.0",
+    "react-native-web": "^0.21.2",
     "react-native-worklets": "0.10.1"
   },
   "devDependencies": {
     "@types/react": "^19.2.0",
     "babel-preset-expo": "^57.0.10",
-    "typescript": "~6.0.3"
+    "typescript": "~6.0.3",
+    "workbox-cli": "^7.4.1"
   }
 }
