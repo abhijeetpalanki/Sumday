@@ -1,4 +1,4 @@
-import { Modal, ScrollView, StyleSheet, Text, View } from 'react-native';
+import { Modal, Platform, ScrollView, StyleSheet, Text, View } from 'react-native';
 import { theme } from '../theme';
 import { Button } from './Button';
 
@@ -105,6 +105,7 @@ const styles = StyleSheet.create({
     paddingHorizontal: theme.space(6),
     paddingBottom: theme.space(10),
     maxHeight: '88%',
+    ...Platform.select({ web: { width: '100%', maxWidth: 520, alignSelf: 'center' } as const, default: {} }),
   },
   content: { paddingBottom: theme.space(4) },
   title: {
