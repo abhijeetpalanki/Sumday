@@ -1,0 +1,163 @@
+<!DOCTYPE html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8" />
+    <meta http-equiv="X-UA-Compatible" content="IE=edge" />
+    <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover" />
+    <title>Sumday</title>
+    <meta name="description" content="Five number puzzles a day. Hit the target with the numbers you’re given." />
+    <meta name="theme-color" content="#08090D" />
+    <meta name="color-scheme" content="dark" />
+
+    <!-- Installable app -->
+    <link rel="manifest" href="/play/manifest.json" />
+    <link rel="apple-touch-icon" href="/play/icons/apple-touch-icon.png" />
+    <meta name="apple-mobile-web-app-capable" content="yes" />
+    <meta name="mobile-web-app-capable" content="yes" />
+    <meta name="apple-mobile-web-app-title" content="Sumday" />
+    <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent" />
+
+    <!-- Link previews when someone pastes the URL -->
+    <meta property="og:title" content="Sumday" />
+    <meta property="og:description" content="Five number puzzles a day. Play in your browser." />
+    <meta property="og:image" content="https://sumday-abhiyourpal.netlify.app/play/icons/icon-512.png" />
+
+    <style id="expo-reset">
+      html,
+      body {
+        height: 100%;
+        background-color: #08090d;
+      }
+      body {
+        overflow: hidden;
+        overscroll-behavior: none;
+        -webkit-tap-highlight-color: transparent;
+        -webkit-user-select: none;
+        user-select: none;
+        -webkit-touch-callout: none;
+        touch-action: manipulation;
+      }
+      #root {
+        display: flex;
+        height: 100%;
+        flex: 1;
+      }
+      /* The Modal focus trap focuses the sheet's scroller on open, and Chrome
+         treats scroll containers as focusable, so it drew a ring around it.
+         Buttons, links and inputs keep their focus rings. */
+      [aria-modal="true"] :focus:not(button):not(a):not(input):not([role="button"]),
+      [aria-modal="true"]:focus,
+      [tabindex="-1"]:focus {
+        outline: none;
+      }
+      #sd-update {
+        position: fixed;
+        left: 50%;
+        bottom: calc(16px + env(safe-area-inset-bottom));
+        transform: translateX(-50%);
+        z-index: 9999;
+        display: flex;
+        align-items: center;
+        gap: 12px;
+        max-width: calc(100% - 32px);
+        padding: 10px 10px 10px 16px;
+        border-radius: 16px;
+        background: #1b1f2a;
+        border: 1px solid #252b39;
+        color: #f2f4f8;
+        font: 600 14px/1.3 system-ui, -apple-system, 'Segoe UI', Roboto, sans-serif;
+        box-shadow: 0 8px 24px rgba(0, 0, 0, 0.5);
+      }
+      #sd-update button {
+        min-height: 40px;
+        padding: 0 16px;
+        border: 0;
+        border-radius: 12px;
+        background: #c6f24e;
+        color: #08090d;
+        font: inherit;
+        font-weight: 800;
+        cursor: pointer;
+      }
+      @media (prefers-reduced-motion: no-preference) {
+        #sd-update {
+          animation: sd-rise 260ms ease-out;
+        }
+        @keyframes sd-rise {
+          from {
+            opacity: 0;
+            transform: translate(-50%, 12px);
+          }
+        }
+      }
+    </style>
+  </head>
+
+  <body>
+    <noscript>Sumday needs JavaScript to run.</noscript>
+    <div id="root"></div>
+
+    <script>
+      (function () {
+        // Ask the browser not to evict saved streaks. Granted automatically for
+        // installed apps on Chrome; harmless no-op elsewhere.
+        try {
+          if (navigator.storage && navigator.storage.persist) navigator.storage.persist();
+        } catch (e) {}
+
+        if (!('serviceWorker' in navigator) || location.protocol !== 'https:') return;
+
+        var userAskedToReload = false;
+        navigator.serviceWorker.addEventListener('controllerchange', function () {
+          if (!userAskedToReload) return;
+          userAskedToReload = false;
+          location.reload();
+        });
+
+        function showUpdateToast(reg) {
+          if (document.getElementById('sd-update')) return;
+          var box = document.createElement('div');
+          box.id = 'sd-update';
+          box.setAttribute('role', 'status');
+          var text = document.createElement('span');
+          text.textContent = 'A new version of Sumday is ready.';
+          var btn = document.createElement('button');
+          btn.type = 'button';
+          btn.textContent = 'Reload';
+          btn.addEventListener('click', function () {
+            if (!reg.waiting) return location.reload();
+            userAskedToReload = true;
+            btn.disabled = true;
+            reg.waiting.postMessage({ type: 'SKIP_WAITING' });
+          });
+          box.appendChild(text);
+          box.appendChild(btn);
+          document.body.appendChild(box);
+        }
+
+        window.addEventListener('load', function () {
+          navigator.serviceWorker
+            .register('/play/sw.js', { scope: '/play/' })
+            .then(function (reg) {
+              if (reg.waiting && navigator.serviceWorker.controller) showUpdateToast(reg);
+              reg.addEventListener('updatefound', function () {
+                var worker = reg.installing;
+                if (!worker) return;
+                worker.addEventListener('statechange', function () {
+                  // Only an *update* gets the toast; the very first install is silent.
+                  if (worker.state === 'installed' && navigator.serviceWorker.controller) {
+                    showUpdateToast(reg);
+                  }
+                });
+              });
+              // Daily players leave the tab open for days; check when they come back.
+              document.addEventListener('visibilitychange', function () {
+                if (document.visibilityState === 'visible') reg.update().catch(function () {});
+              });
+            })
+            .catch(function () {});
+        });
+      })();
+    </script>
+  </body>
+</html>

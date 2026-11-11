@@ -1,0 +1,18 @@
+{
+  "id": "/play/",
+  "name": "Sumday",
+  "short_name": "Sumday",
+  "description": "Five number puzzles a day. Hit the target with the numbers you’re given.",
+  "start_url": "/play/",
+  "scope": "/play/",
+  "display": "standalone",
+  "orientation": "portrait",
+  "background_color": "#08090D",
+  "theme_color": "#08090D",
+  "categories": ["games", "puzzle"],
+  "icons": [
+    { "src": "/play/icons/icon-192.png", "sizes": "192x192", "type": "image/png", "purpose": "any" },
+    { "src": "/play/icons/icon-512.png", "sizes": "512x512", "type": "image/png", "purpose": "any" },
+    { "src": "/play/icons/maskable-512.png", "sizes": "512x512", "type": "image/png", "purpose": "maskable" }
+  ]
+}

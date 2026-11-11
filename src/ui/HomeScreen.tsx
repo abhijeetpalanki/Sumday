@@ -4,6 +4,7 @@ import { useSafeAreaInsets } from 'react-native-safe-area-context';
 
 import { theme } from './theme';
 import { Button } from './components/Button';
+import { InstallHint } from './components/InstallHint';
 import { effectiveStreak, type DailyProgress, type Stats } from '../state/storage';
 
 interface Props {
@@ -63,6 +64,8 @@ export function HomeScreen({
       )}
 
       <View style={styles.spacer} />
+
+      <InstallHint />
 
       <Animated.View entering={FadeInDown.delay(140).duration(420)} style={styles.actions}>
         <Button
