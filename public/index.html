@@ -42,6 +42,14 @@
         height: 100%;
         flex: 1;
       }
+      /* The Modal focus trap focuses the sheet's scroller on open, and Chrome
+         treats scroll containers as focusable, so it drew a ring around it.
+         Buttons, links and inputs keep their focus rings. */
+      [aria-modal="true"] :focus:not(button):not(a):not(input):not([role="button"]),
+      [aria-modal="true"]:focus,
+      [tabindex="-1"]:focus {
+        outline: none;
+      }
       #sd-update {
         position: fixed;
         left: 50%;
