@@ -1,42 +1,68 @@
 import React, { useEffect } from 'react';
 import { Pressable, StyleSheet, Text } from 'react-native';
 import Animated, {
+  FadeOut,
+  Keyframe,
   useAnimatedStyle,
+  useReducedMotion,
   useSharedValue,
   withRepeat,
   withSequence,
   withSpring,
   withTiming,
-  ZoomIn,
-  ZoomOut,
-  LinearTransition,
 } from 'react-native-reanimated';
 import { theme } from '../theme';
 
 const AnimatedPressable = Animated.createAnimatedComponent(Pressable);
 
+/**
+ * A merge result settles in place: a short fade with a slight scale-up and no
+ * overshoot. The old springy zoom plus a whole-board reflow read as "every
+ * tile jiggles on every move", which is exactly what players called out.
+ */
+const settleIn = new Keyframe({
+  0: { opacity: 0, transform: [{ scale: 0.92 }] },
+  100: { opacity: 1, transform: [{ scale: 1 }] },
+}).duration(180);
+
+const fadeAway = FadeOut.duration(140);
+
+/** Hint pulses breathe twice, then hold a static border instead of looping forever. */
+const HINT_BREATHS = 4; // up-down-up-down, ending at rest
+
+export const TILE_SIZE = 92;
+
 interface Props {
   value: number;
   selected: boolean;
-  /** Dimmed while it waits for an operator to be chosen. */
+  /**
+   * Dimmed while it waits for an operator, or because combining it with the
+   * selected tile and operator would break the whole-number rule.
+   */
   dimmed: boolean;
   /** Freshly created by the last move — gets a one-off accent flash. */
   fresh: boolean;
-  /** Called out by an active hint — pulses until the hint is spent. */
+  /** Called out by an active hint. */
   hinted: boolean;
+  /** Bumped when a move onto this tile is rejected; plays one small nudge. */
+  nudge: number;
+  /** Extra context for screen readers, e.g. "not allowed with the selected move". */
+  hintText?: string;
   onPress: () => void;
 }
 
 /**
  * A number tile.
  *
- * Entering/exiting/layout animations are declarative so a merge reads as
- * "two tiles left, one arrived" without any manual position measurement.
+ * The parent places each tile in a fixed slot and never reorders them, so the
+ * only tiles that animate on a move are the two that were combined.
  */
-function TileBase({ value, selected, dimmed, fresh, hinted, onPress }: Props) {
+function TileBase({ value, selected, dimmed, fresh, hinted, nudge, hintText, onPress }: Props) {
+  const reduceMotion = useReducedMotion();
   const press = useSharedValue(1);
   const flash = useSharedValue(0);
   const pulse = useSharedValue(0);
+  const shiftX = useSharedValue(0);
 
   useEffect(() => {
     if (fresh) {
@@ -45,48 +71,59 @@ function TileBase({ value, selected, dimmed, fresh, hinted, onPress }: Props) {
   }, [fresh, flash]);
 
   useEffect(() => {
-    if (hinted) {
-      pulse.value = withRepeat(withTiming(1, { duration: 750 }), -1, true);
+    if (hinted && !reduceMotion) {
+      pulse.value = withRepeat(withTiming(1, { duration: 650 }), HINT_BREATHS, true);
     } else {
-      pulse.value = withTiming(0, { duration: 200 });
+      pulse.value = withTiming(0, { duration: 150 });
     }
-  }, [hinted, pulse]);
+  }, [hinted, pulse, reduceMotion]);
+
+  useEffect(() => {
+    if (nudge === 0 || reduceMotion) return;
+    shiftX.value = withSequence(
+      withTiming(-3, { duration: 50 }),
+      withTiming(3, { duration: 60 }),
+      withTiming(0, { duration: 50 }),
+    );
+  }, [nudge, reduceMotion, shiftX]);
 
   const animated = useAnimatedStyle(() => ({
-    transform: [{ scale: press.value * (selected ? 1.06 : 1 + pulse.value * 0.04) }],
+    transform: [
+      { translateX: shiftX.value },
+      { scale: press.value * (selected ? 1.04 : 1 + pulse.value * 0.03) },
+    ],
     borderColor: selected
       ? theme.color.accent
-      : pulse.value > 0.5 || flash.value > 0.5
+      : hinted || flash.value > 0.5
         ? theme.color.accentDim
         : theme.color.border,
-    opacity: dimmed ? 0.45 : 1,
+    opacity: dimmed ? 0.35 : 1,
   }));
 
   // Long numbers must shrink rather than overflow the tile.
   const digits = String(value).length;
   const fontSize = digits <= 2 ? 34 : digits === 3 ? 29 : digits === 4 ? 24 : 20;
 
-  // Two nodes on purpose. The wrapper owns the layout animations that drive
-  // the merge choreography; the Pressable owns the press-scale and hint-pulse
-  // transform. Putting both on one node makes them fight over `transform` --
-  // Reanimated warns about exactly this, and the press scale is what loses.
+  // Two nodes on purpose. The wrapper owns the enter/exit animation; the
+  // Pressable owns the press-scale, hint-pulse and nudge transform. Putting
+  // both on one node makes them fight over `transform`.
   return (
     <Animated.View
-      entering={ZoomIn.springify().damping(16)}
-      exiting={ZoomOut.duration(160)}
-      layout={LinearTransition.springify().damping(18)}
-      style={styles.slot}
+      entering={reduceMotion ? undefined : settleIn}
+      exiting={reduceMotion ? undefined : fadeAway}
+      style={StyleSheet.absoluteFill}
     >
       <AnimatedPressable
         onPressIn={() => {
-          press.value = withSpring(0.94, { damping: 18, stiffness: 320 });
+          press.value = withSpring(0.95, { damping: 20, stiffness: 340 });
         }}
         onPressOut={() => {
-          press.value = withSpring(1, { damping: 14, stiffness: 260 });
+          press.value = withSpring(1, { damping: 20, stiffness: 300 });
         }}
         onPress={onPress}
         accessibilityRole="button"
         accessibilityLabel={`Tile ${value}`}
+        accessibilityHint={hintText}
         accessibilityState={{ selected }}
         style={[styles.tile, selected && styles.tileSelected, animated]}
       >
@@ -102,12 +139,9 @@ function TileBase({ value, selected, dimmed, fresh, hinted, onPress }: Props) {
 }
 
 const styles = StyleSheet.create({
-  // Spacing lives on the wrapper so the layout animation animates the gap,
-  // not the pressable's own transform.
-  slot: { margin: theme.space(1.5) },
   tile: {
-    width: 92,
-    height: 92,
+    width: TILE_SIZE,
+    height: TILE_SIZE,
     borderRadius: theme.radius.lg,
     backgroundColor: theme.color.tile,
     borderWidth: 2,

@@ -1,18 +1,12 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { Pressable, StyleSheet, Text, View } from 'react-native';
 import * as Haptics from 'expo-haptics';
-import Animated, {
-  FadeIn,
-  FadeOut,
-  useAnimatedStyle,
-  useSharedValue,
-  withSequence,
-  withTiming,
-} from 'react-native-reanimated';
+import Animated, { FadeIn, FadeOut } from 'react-native-reanimated';
 
 import {
   applyMove,
   bestDistance,
+  combine,
   hintFor,
   isSolved,
   newBoard,
@@ -26,7 +20,7 @@ import {
 } from '../engine/puzzle';
 import { theme } from './theme';
 import { OP_GLYPH } from './opGlyph';
-import { Tile } from './components/Tile';
+import { Tile, TILE_SIZE } from './components/Tile';
 import { OpButton } from './components/OpButton';
 import { TargetDisplay } from './components/TargetDisplay';
 
@@ -72,7 +66,8 @@ export function PuzzleBoard({
   const [hintLevel, setHintLevel] = useState<0 | 1 | 2>(0);
   const [deadEnd, setDeadEnd] = useState(false);
 
-  const shake = useSharedValue(0);
+  // Which tile last refused a move, and a counter so repeat refusals replay.
+  const [nudge, setNudge] = useState<{ id: number; n: number }>({ id: -1, n: 0 });
 
   // Pending "advance to the next puzzle" timer, so leaving the screen
   // mid-celebration cannot score a puzzle the player never finished.
@@ -113,15 +108,15 @@ export function PuzzleBoard({
 
   useEffect(() => clearAdvance, [clearAdvance]);
 
-  const reject = useCallback(() => {
-    shake.value = withSequence(
-      withTiming(-9, { duration: 55 }),
-      withTiming(9, { duration: 55 }),
-      withTiming(-6, { duration: 55 }),
-      withTiming(0, { duration: 55 }),
-    );
+  /**
+   * A refused move nudges only the tile that was tapped, once, plus the error
+   * haptic. The whole row used to shake, which read as the board itself
+   * jolting on every mistake.
+   */
+  const reject = useCallback((tileId: number | null) => {
+    if (tileId !== null) setNudge((prev) => ({ id: tileId, n: prev.n + 1 }));
     void Haptics.notificationAsync(Haptics.NotificationFeedbackType.Error);
-  }, [shake]);
+  }, []);
 
   const handleTile = useCallback(
     (id: number) => {
@@ -144,7 +139,7 @@ export function PuzzleBoard({
 
       const result = applyMove(board, selectedTile, selectedOp, id);
       if (!result) {
-        reject();
+        reject(id);
         return;
       }
 
@@ -195,8 +190,9 @@ export function PuzzleBoard({
       const next = hintFor(board);
       if (next.kind === 'dead-end') {
         // Nothing to point at. Surface it, but don't charge for the bad news.
+        // The message strip explains it; no tile is at fault, so nothing moves.
         setDeadEnd(true);
-        reject();
+        reject(null);
         return;
       }
       setHint(next);
@@ -209,31 +205,72 @@ export function PuzzleBoard({
     onUseHint();
   }, [board, hintLevel, hintsLeft, onUseHint, reject, solved]);
 
-  const shakeStyle = useAnimatedStyle(() => ({ transform: [{ translateX: shake.value }] }));
-
   const distance = useMemo(() => bestDistance(board), [board]);
   const canUndo = board.history.length > 0 && !solved;
   const hintedMove = hint?.kind === 'move' ? hint : null;
+
+  // With a tile and an operator chosen, work out which second tiles would
+  // break the whole-number rule and dim them up front, so a refusal is the
+  // exception rather than the way players discover the rule.
+  const blocked = useMemo(() => {
+    const out = new Set<number>();
+    if (selectedTile === null || selectedOp === null) return out;
+    const a = board.tiles.find((t) => t.id === selectedTile);
+    if (!a) return out;
+    for (const t of board.tiles) {
+      if (t.id !== a.id && combine(a.value, t.value, selectedOp) === null) out.add(t.id);
+    }
+    return out;
+  }, [board, selectedOp, selectedTile]);
+
+  // Fixed slots: 3 on top, 2 below. A slot whose tile was consumed stays as an
+  // empty outline, so no other tile ever has to move to fill the gap.
+  const bySlot = useMemo(() => {
+    const map = new Map<number, (typeof board.tiles)[number]>();
+    for (const t of board.tiles) map.set(t.slot, t);
+    return map;
+  }, [board]);
 
   return (
     <View style={styles.wrap}>
       <TargetDisplay target={board.target} distance={distance} solved={solved} />
 
-      <Animated.View style={[styles.tiles, shakeStyle]}>
-        {board.tiles.map((t) => (
-          <Tile
-            key={t.id}
-            value={t.value}
-            selected={selectedTile === t.id}
-            dimmed={selectedTile !== null && selectedTile !== t.id && selectedOp === null}
-            fresh={freshId === t.id}
-            hinted={
-              !solved && hintedMove !== null && (t.id === hintedMove.aId || t.id === hintedMove.bId)
-            }
-            onPress={() => handleTile(t.id)}
-          />
+      <View style={styles.tiles}>
+        {SLOT_ROWS.map((row, r) => (
+          <View key={r} style={styles.tileRow}>
+            {row.map((slot) => {
+              const t = bySlot.get(slot);
+              return (
+                <View key={slot} style={styles.slot}>
+                  {t ? (
+                    <Tile
+                      key={t.id}
+                      value={t.value}
+                      selected={selectedTile === t.id}
+                      dimmed={
+                        selectedTile !== null &&
+                        selectedTile !== t.id &&
+                        (selectedOp === null || blocked.has(t.id))
+                      }
+                      fresh={freshId === t.id}
+                      hinted={
+                        !solved &&
+                        hintedMove !== null &&
+                        (t.id === hintedMove.aId || t.id === hintedMove.bId)
+                      }
+                      nudge={nudge.id === t.id ? nudge.n : 0}
+                      hintText={blocked.has(t.id) ? 'Not a whole-number result with this move' : undefined}
+                      onPress={() => handleTile(t.id)}
+                    />
+                  ) : (
+                    <View style={styles.emptySlot} accessibilityElementsHidden importantForAccessibility="no" />
+                  )}
+                </View>
+              );
+            })}
+          </View>
         ))}
-      </Animated.View>
+      </View>
 
       <View style={styles.ops}>
         {OPS.map((op) => (
@@ -274,6 +311,12 @@ export function PuzzleBoard({
     </View>
   );
 }
+
+/** Five fixed positions, three on top and two below. */
+const SLOT_ROWS: readonly (readonly number[])[] = [
+  [0, 1, 2],
+  [3, 4],
+];
 
 /** The one place the board talks to the player in words. */
 function MessageStrip({
@@ -348,12 +391,19 @@ function FooterAction({
 const styles = StyleSheet.create({
   wrap: { alignItems: 'center', width: '100%' },
   tiles: {
-    flexDirection: 'row',
-    flexWrap: 'wrap',
-    justifyContent: 'center',
     alignItems: 'center',
     minHeight: 200,
     marginTop: theme.space(3),
+  },
+  tileRow: { flexDirection: 'row', justifyContent: 'center' },
+  slot: { width: TILE_SIZE, height: TILE_SIZE, margin: theme.space(1.5) },
+  emptySlot: {
+    flex: 1,
+    borderRadius: theme.radius.lg,
+    borderWidth: 2,
+    borderStyle: 'dashed',
+    borderColor: theme.color.border,
+    opacity: 0.5,
   },
   ops: { flexDirection: 'row', justifyContent: 'center', marginTop: theme.space(5) },
 
