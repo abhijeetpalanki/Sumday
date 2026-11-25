@@ -2,7 +2,7 @@ import { useCallback, useEffect, useState } from 'react';
 import { AccessibilityInfo, StyleSheet, Text, View } from 'react-native';
 import Animated, { FadeIn, FadeInDown } from 'react-native-reanimated';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
-import * as Haptics from 'expo-haptics';
+import * as Haptics from './haptics';
 
 import { theme } from './theme';
 import { Button } from './components/Button';
@@ -11,6 +11,7 @@ import { shareResult } from '../shareResult';
 import { msUntilNextLocalMidnight } from '../engine/daily';
 import type { DailyProgress, Stats } from '../state/storage';
 import { effectiveStreak } from '../state/storage';
+import { useSettings } from './SettingsContext';
 
 interface Props {
   puzzleNumber: number;
@@ -34,6 +35,7 @@ export function ResultsScreen({ puzzleNumber, todayKey, progress, stats, onStats
   const insets = useSafeAreaInsets();
   const [untilTomorrow, setUntilTomorrow] = useState(() => msUntilNextLocalMidnight());
   const [shareLabel, setShareLabel] = useState<string | null>(null);
+  const { settings } = useSettings();
 
   useEffect(() => {
     const id = setInterval(() => setUntilTomorrow(msUntilNextLocalMidnight()), 1000);
@@ -52,6 +54,7 @@ export function ResultsScreen({ puzzleNumber, todayKey, progress, stats, onStats
       results: progress.results,
       elapsedMs: progress.elapsedMs,
       streak,
+      showTime: settings.showTimer,
     });
     void shareResult(message).then((outcome) => {
       const label =
@@ -61,7 +64,7 @@ export function ResultsScreen({ puzzleNumber, todayKey, progress, stats, onStats
         AccessibilityInfo.announceForAccessibility(label);
       }
     });
-  }, [progress.elapsedMs, progress.results, puzzleNumber, streak]);
+  }, [progress.elapsedMs, progress.results, puzzleNumber, settings.showTimer, streak]);
 
   // The confirmation reads on the button itself, then reverts.
   useEffect(() => {
@@ -110,7 +113,7 @@ export function ResultsScreen({ puzzleNumber, todayKey, progress, stats, onStats
       <Animated.View entering={FadeInDown.delay(620).duration(400)} style={styles.statRow}>
         <Stat value={`${solved}/5`} label="solved" />
         <Stat value={String(atPar)} label="at par" />
-        <Stat value={formatTime(progress.elapsedMs)} label="time" />
+        {settings.showTimer ? <Stat value={formatTime(progress.elapsedMs)} label="time" /> : null}
         <Stat value={String(streak)} label="streak" accent={streak > 0} />
       </Animated.View>
 

@@ -4,7 +4,6 @@ import Animated, {
   FadeOut,
   Keyframe,
   useAnimatedStyle,
-  useReducedMotion,
   useSharedValue,
   withRepeat,
   withSequence,
@@ -12,6 +11,7 @@ import Animated, {
   withTiming,
 } from 'react-native-reanimated';
 import { theme } from '../theme';
+import { useMotionOff } from '../SettingsContext';
 
 const AnimatedPressable = Animated.createAnimatedComponent(Pressable);
 
@@ -58,7 +58,7 @@ interface Props {
  * only tiles that animate on a move are the two that were combined.
  */
 function TileBase({ value, selected, dimmed, fresh, hinted, nudge, hintText, onPress }: Props) {
-  const reduceMotion = useReducedMotion();
+  const reduceMotion = useMotionOff();
   const press = useSharedValue(1);
   const flash = useSharedValue(0);
   const pulse = useSharedValue(0);

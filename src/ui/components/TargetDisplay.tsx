@@ -2,7 +2,6 @@ import React, { useEffect } from 'react';
 import { StyleSheet, Text, View } from 'react-native';
 import Animated, {
   useAnimatedStyle,
-  useReducedMotion,
   useSharedValue,
   withRepeat,
   withSequence,
@@ -10,6 +9,7 @@ import Animated, {
   withTiming,
 } from 'react-native-reanimated';
 import { theme } from '../theme';
+import { useMotionOff } from '../SettingsContext';
 
 interface Props {
   target: number;
@@ -27,7 +27,7 @@ interface Props {
  * that never stops is noise by the third second.
  */
 function TargetDisplayBase({ target, distance, solved }: Props) {
-  const reduceMotion = useReducedMotion();
+  const reduceMotion = useMotionOff();
   const pulse = useSharedValue(0);
   const warmth = useSharedValue(0);
   const pop = useSharedValue(1);

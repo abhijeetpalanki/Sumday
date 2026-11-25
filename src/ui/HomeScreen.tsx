@@ -16,6 +16,7 @@ interface Props {
   onPlayEndless: () => void;
   onStats: () => void;
   onHowTo: () => void;
+  onSettings: () => void;
 }
 
 const MONTHS = ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec'];
@@ -29,6 +30,7 @@ export function HomeScreen({
   onPlayEndless,
   onStats,
   onHowTo,
+  onSettings,
 }: Props) {
   const insets = useSafeAreaInsets();
   const streak = effectiveStreak(stats, todayKey);
@@ -85,6 +87,7 @@ export function HomeScreen({
       <Animated.View entering={FadeInDown.delay(200).duration(420)} style={styles.links}>
         <Button label="Statistics" variant="ghost" onPress={onStats} />
         <Button label="How to play" variant="ghost" onPress={onHowTo} />
+        <Button label="Settings" variant="ghost" onPress={onSettings} />
       </Animated.View>
     </View>
   );
