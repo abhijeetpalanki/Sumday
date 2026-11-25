@@ -189,6 +189,7 @@ export default function App() {
           {screen === 'results' && (
             <ResultsScreen
               puzzleNumber={number}
+              puzzles={puzzles}
               todayKey={today}
               progress={progress}
               stats={stats}

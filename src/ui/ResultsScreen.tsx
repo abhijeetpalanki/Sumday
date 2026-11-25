@@ -12,10 +12,14 @@ import { msUntilNextLocalMidnight } from '../engine/daily';
 import type { DailyProgress, Stats } from '../state/storage';
 import { effectiveStreak } from '../state/storage';
 import { useSettings } from './SettingsContext';
+import { SolutionsSheet } from './components/SolutionsSheet';
+import type { Puzzle } from '../engine/puzzle';
 
 interface Props {
   puzzleNumber: number;
   todayKey: string;
+  /** Today's five puzzles, for the solutions sheet. */
+  puzzles: Puzzle[];
   progress: DailyProgress;
   stats: Stats;
   onStats: () => void;
@@ -31,11 +35,12 @@ function countdown(ms: number): string {
   return `${pad(h)}:${pad(m)}:${pad(s)}`;
 }
 
-export function ResultsScreen({ puzzleNumber, todayKey, progress, stats, onStats, onExit }: Props) {
+export function ResultsScreen({ puzzleNumber, todayKey, puzzles, progress, stats, onStats, onExit }: Props) {
   const insets = useSafeAreaInsets();
   const [untilTomorrow, setUntilTomorrow] = useState(() => msUntilNextLocalMidnight());
   const [shareLabel, setShareLabel] = useState<string | null>(null);
   const { settings } = useSettings();
+  const [showSolutions, setShowSolutions] = useState(false);
 
   useEffect(() => {
     const id = setInterval(() => setUntilTomorrow(msUntilNextLocalMidnight()), 1000);
@@ -126,9 +131,19 @@ export function ResultsScreen({ puzzleNumber, todayKey, progress, stats, onStats
 
       <Animated.View entering={FadeInDown.delay(800).duration(400)} style={styles.actions}>
         <Button label={shareLabel ?? 'Share result'} variant="primary" onPress={handleShare} />
-        <Button label="Statistics" onPress={onStats} />
+        <View style={styles.pair}>
+          <Button label="Solutions" onPress={() => setShowSolutions(true)} style={styles.half} />
+          <Button label="Statistics" onPress={onStats} style={styles.half} />
+        </View>
         <Button label="Back" variant="ghost" onPress={onExit} />
       </Animated.View>
+
+      <SolutionsSheet
+        visible={showSolutions}
+        puzzles={puzzles}
+        results={progress.results}
+        onClose={() => setShowSolutions(false)}
+      />
     </View>
   );
 }
@@ -199,4 +214,6 @@ const styles = StyleSheet.create({
     fontVariant: ['tabular-nums'],
   },
   actions: { alignSelf: 'stretch', gap: theme.space(3), marginTop: theme.space(8) },
+  pair: { flexDirection: 'row', gap: theme.space(3) },
+  half: { flex: 1, justifyContent: 'center' },
 });
