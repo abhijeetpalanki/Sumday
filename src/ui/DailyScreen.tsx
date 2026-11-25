@@ -8,6 +8,7 @@ import { theme } from './theme';
 import { PuzzleBoard } from './PuzzleBoard';
 import { ProgressDots } from './components/ProgressDots';
 import { Timer } from './components/Timer';
+import { useSettings } from './SettingsContext';
 
 interface Props {
   puzzles: Puzzle[];
@@ -34,6 +35,7 @@ interface SlotClock {
 
 export function DailyScreen({ puzzles, progress, onProgress, onFinish, onExit }: Props) {
   const insets = useSafeAreaInsets();
+  const { settings } = useSettings();
 
   // Slot and its clock move together, so the timer can never be rendered
   // against the previous puzzle's start time.
@@ -118,11 +120,16 @@ export function DailyScreen({ puzzles, progress, onProgress, onFinish, onExit }:
           <ProgressDots results={progress.results} active={slot} />
         </View>
 
-        <Timer
-          baseMs={progress.elapsedMs + bankedMs}
-          runningSince={startedAt}
-          style={styles.timer}
-        />
+        {settings.showTimer ? (
+          <Timer
+            baseMs={progress.elapsedMs + bankedMs}
+            runningSince={startedAt}
+            style={styles.timer}
+          />
+        ) : (
+          // Same width as the clock, so the title stays centred.
+          <View style={styles.timerSpacer} />
+        )}
       </View>
 
       <ScrollView
@@ -162,5 +169,6 @@ const styles = StyleSheet.create({
     letterSpacing: 3,
   },
   timer: { width: 44, textAlign: 'right' },
+  timerSpacer: { width: 44 },
   body: { alignItems: 'center', paddingTop: theme.space(2) },
 });

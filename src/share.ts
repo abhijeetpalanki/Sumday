@@ -45,17 +45,19 @@ export function buildShareText(opts: {
   results: (SlotResult | null)[];
   elapsedMs: number;
   streak: number;
+  /** Off when the player has hidden the timer; the line then leads with the streak. */
+  showTime?: boolean;
 }): string {
-  const { puzzleNumber, results, elapsedMs, streak } = opts;
+  const { puzzleNumber, results, elapsedMs, streak, showTime = true } = opts;
   const solved = results.filter((r) => r?.status === 'solved').length;
   const grid = results.map(slotEmoji).join('');
 
   const lines = [`Sumday #${puzzleNumber}  ${solved}/5`, grid];
 
-  const meta: string[] = [formatTime(elapsedMs)];
+  const meta: string[] = showTime ? [formatTime(elapsedMs)] : [];
   if (streak > 1) meta.push(`🔥 ${streak}`);
   if (results.every((r) => slotEmoji(r) === '🟩')) meta.push('perfect');
-  lines.push(meta.join('  ·  '));
+  if (meta.length > 0) lines.push(meta.join('  ·  '));
 
   if (SHARE_URL) lines.push(SHARE_URL);
   return lines.join('\n');

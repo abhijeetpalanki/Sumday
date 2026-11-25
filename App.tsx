@@ -21,7 +21,10 @@ import {
   type DailyProgress,
   type Stats,
 } from './src/state/storage';
+import { defaultSettings, loadSettings, type Settings } from './src/state/settings';
 import { theme } from './src/ui/theme';
+import { SettingsProvider } from './src/ui/SettingsContext';
+import { SettingsScreen } from './src/ui/SettingsScreen';
 import { HomeScreen } from './src/ui/HomeScreen';
 import { DailyScreen } from './src/ui/DailyScreen';
 import { EndlessScreen } from './src/ui/EndlessScreen';
@@ -29,7 +32,7 @@ import { ResultsScreen } from './src/ui/ResultsScreen';
 import { StatsScreen } from './src/ui/StatsScreen';
 import { HowToPlay } from './src/ui/components/HowToPlay';
 
-type Screen = 'home' | 'daily' | 'endless' | 'results' | 'stats';
+type Screen = 'home' | 'daily' | 'endless' | 'results' | 'stats' | 'settings';
 
 export default function App() {
   const [ready, setReady] = useState(false);
@@ -39,6 +42,7 @@ export default function App() {
   const [today, setToday] = useState(() => dayKey());
   const [stats, setStats] = useState<Stats>(emptyStats);
   const [progress, setProgress] = useState<DailyProgress>(() => emptyProgress(dayKey()));
+  const [initialSettings, setInitialSettings] = useState<Settings>(defaultSettings);
 
   // Bumped when the midnight timer fires without the date actually changing,
   // purely to re-arm the next timer.
@@ -52,8 +56,9 @@ export default function App() {
     let cancelled = false;
     (async () => {
       const key = dayKey();
-      const [s, p] = await Promise.all([loadStats(), loadProgress(key)]);
+      const [s, p, prefs] = await Promise.all([loadStats(), loadProgress(key), loadSettings()]);
       if (cancelled) return;
+      setInitialSettings(prefs);
       setToday(key);
       setStats(s);
       setProgress(p);
@@ -145,57 +150,64 @@ export default function App() {
 
   return (
     <SafeAreaProvider>
-      <View style={styles.root}>
-        <StatusBar style="light" />
+      <SettingsProvider initial={initialSettings}>
+        <View style={styles.root}>
+          <StatusBar style="light" />
 
-        {screen === 'home' && (
-          <HomeScreen
-            puzzleNumber={number}
-            todayKey={today}
-            stats={stats}
-            progress={progress}
-            onPlayDaily={handlePlayDaily}
-            onPlayEndless={() => setScreen('endless')}
-            onStats={() => setScreen('stats')}
-            onHowTo={() => setShowHowTo(true)}
-          />
-        )}
+          {screen === 'home' && (
+            <HomeScreen
+              puzzleNumber={number}
+              todayKey={today}
+              stats={stats}
+              progress={progress}
+              onPlayDaily={handlePlayDaily}
+              onPlayEndless={() => setScreen('endless')}
+              onStats={() => setScreen('stats')}
+              onHowTo={() => setShowHowTo(true)}
+              onSettings={() => setScreen('settings')}
+            />
+          )}
 
-        {screen === 'daily' && (
-          <DailyScreen
-            puzzles={puzzles}
-            progress={progress}
-            onProgress={persistProgress}
-            onFinish={handleFinishDaily}
-            onExit={() => setScreen('home')}
-          />
-        )}
+          {screen === 'daily' && (
+            <DailyScreen
+              puzzles={puzzles}
+              progress={progress}
+              onProgress={persistProgress}
+              onFinish={handleFinishDaily}
+              onExit={() => setScreen('home')}
+            />
+          )}
 
-        {screen === 'endless' && (
-          <EndlessScreen
-            best={stats.endlessBest}
-            onEnd={handleEndEndless}
-            onExit={() => setScreen('home')}
-          />
-        )}
+          {screen === 'endless' && (
+            <EndlessScreen
+              best={stats.endlessBest}
+              onEnd={handleEndEndless}
+              onExit={() => setScreen('home')}
+            />
+          )}
 
-        {screen === 'results' && (
-          <ResultsScreen
-            puzzleNumber={number}
-            todayKey={today}
-            progress={progress}
-            stats={stats}
-            onStats={() => setScreen('stats')}
-            onExit={() => setScreen('home')}
-          />
-        )}
+          {screen === 'results' && (
+            <ResultsScreen
+              puzzleNumber={number}
+              todayKey={today}
+              progress={progress}
+              stats={stats}
+              onStats={() => setScreen('stats')}
+              onExit={() => setScreen('home')}
+            />
+          )}
 
-        {screen === 'stats' && (
-          <StatsScreen stats={stats} todayKey={today} onExit={() => setScreen('home')} />
-        )}
+          {screen === 'settings' && (
+            <SettingsScreen onHowTo={() => setShowHowTo(true)} onExit={() => setScreen('home')} />
+          )}
 
-        <HowToPlay visible={showHowTo} onClose={handleCloseHowTo} />
-      </View>
+          {screen === 'stats' && (
+            <StatsScreen stats={stats} todayKey={today} onExit={() => setScreen('home')} />
+          )}
+
+          <HowToPlay visible={showHowTo} onClose={handleCloseHowTo} />
+        </View>
+      </SettingsProvider>
     </SafeAreaProvider>
   );
 }
