@@ -2,6 +2,7 @@ import React, { useEffect } from 'react';
 import { StyleSheet, Text, View } from 'react-native';
 import Animated, {
   useAnimatedStyle,
+  useReducedMotion,
   useSharedValue,
   withRepeat,
   withSequence,
@@ -22,9 +23,13 @@ interface Props {
  *
  * The subtle pulse when the player gets within 10 is the single most important
  * piece of feedback in the game: it is what turns "I'm stuck" into "I'm close".
+ * It breathes twice when you get close, then holds a steady glow: a pulse
+ * that never stops is noise by the third second.
  */
 function TargetDisplayBase({ target, distance, solved }: Props) {
+  const reduceMotion = useReducedMotion();
   const pulse = useSharedValue(0);
+  const warmth = useSharedValue(0);
   const pop = useSharedValue(1);
 
   const warm = distance > 0 && distance <= 10;
@@ -32,20 +37,26 @@ function TargetDisplayBase({ target, distance, solved }: Props) {
   useEffect(() => {
     if (solved) {
       pulse.value = withTiming(0);
-      pop.value = withSequence(
-        withSpring(1.18, { damping: 8, stiffness: 220 }),
-        withSpring(1, { damping: 12, stiffness: 180 }),
-      );
+      warmth.value = withTiming(0, { duration: 200 });
+      if (!reduceMotion) {
+        pop.value = withSequence(
+          withSpring(1.12, { damping: 12, stiffness: 220 }),
+          withSpring(1, { damping: 16, stiffness: 200 }),
+        );
+      }
     } else if (warm) {
-      pulse.value = withRepeat(withTiming(1, { duration: 900 }), -1, true);
+      warmth.value = withTiming(1, { duration: reduceMotion ? 0 : 300 });
+      // Two breaths (up-down-up-down), ending at rest.
+      pulse.value = reduceMotion ? 0 : withRepeat(withTiming(1, { duration: 700 }), 4, true);
     } else {
       pulse.value = withTiming(0, { duration: 200 });
+      warmth.value = withTiming(0, { duration: 200 });
     }
-  }, [warm, solved, pulse, pop]);
+  }, [warm, solved, pulse, warmth, pop, reduceMotion]);
 
   const glow = useAnimatedStyle(() => ({
-    opacity: 0.25 + pulse.value * 0.55,
-    transform: [{ scale: 1 + pulse.value * 0.04 }],
+    opacity: 0.25 + warmth.value * 0.3 + pulse.value * 0.25,
+    transform: [{ scale: 1 + pulse.value * 0.03 }],
   }));
 
   const number = useAnimatedStyle(() => ({ transform: [{ scale: pop.value }] }));

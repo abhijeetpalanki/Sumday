@@ -288,6 +288,12 @@ export interface Tile {
   value: number;
   /** Index in the original deal, or -1 for a derived tile. */
   origin: number;
+  /**
+   * Fixed board position, 0..4. A tile never changes slot, and a merge result
+   * takes the slot of the second tile tapped, so a move never makes any other
+   * tile on the board move.
+   */
+  slot: number;
 }
 
 export interface Board {
@@ -300,7 +306,7 @@ export interface Board {
 
 export function newBoard(puzzle: Puzzle): Board {
   return {
-    tiles: puzzle.numbers.map((value, i) => ({ id: i, value, origin: i })),
+    tiles: puzzle.numbers.map((value, i) => ({ id: i, value, origin: i, slot: i })),
     target: puzzle.target,
     opsUsed: 0,
     nextId: puzzle.numbers.length,
@@ -327,7 +333,8 @@ export function applyMove(board: Board, aId: number, op: Op, bId: number): MoveR
   const value = combine(a.value, b.value, op);
   if (value === null) return null;
 
-  const created: Tile = { id: board.nextId, value, origin: -1 };
+  // The result lands where the player's finger is: the second tile's slot.
+  const created: Tile = { id: board.nextId, value, origin: -1, slot: b.slot };
   const snapshot: Board = { ...board, history: [] };
 
   return {

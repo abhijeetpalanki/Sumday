@@ -147,6 +147,15 @@ console.log('\nSumday engine verification\n' + '='.repeat(46));
     check('move consumes two tiles, adds one', moved.board.tiles.length === b.tiles.length - 1);
     check('undo restores tile count', undoMove(moved.board).tiles.length === b.tiles.length);
     check('undo restores ops counter', undoMove(moved.board).opsUsed === 0);
+    const second = b.tiles[1];
+    check('result takes the second tile\'s slot', moved.created.slot === second.slot);
+    const untouched = b.tiles.slice(2);
+    check(
+      'other tiles keep their slots',
+      untouched.every((t) => moved.board.tiles.find((u) => u.id === t.id)?.slot === t.slot),
+    );
+    const slots = moved.board.tiles.map((t) => t.slot);
+    check('slots stay unique', new Set(slots).size === slots.length);
   }
   console.log('illegal-move guards ..................... ok');
 }
