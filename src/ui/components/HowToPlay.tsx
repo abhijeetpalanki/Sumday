@@ -8,10 +8,10 @@ interface Props {
 }
 
 /**
- * First-run rules.
+ * The written rules, reachable from Home. First launch shows the hands-on
+ * Tutorial instead, which links here.
  *
- * Shown automatically on first launch and reachable from Home afterwards.
- * App Review rejects games whose rules aren't discoverable in-app, so this
+ * Store review rejects games whose rules aren't discoverable in-app, so this
  * screen is a submission requirement as much as a UX one.
  */
 export function HowToPlay({ visible, onClose }: Props) {

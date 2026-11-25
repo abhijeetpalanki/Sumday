@@ -31,6 +31,7 @@ import { EndlessScreen } from './src/ui/EndlessScreen';
 import { ResultsScreen } from './src/ui/ResultsScreen';
 import { StatsScreen } from './src/ui/StatsScreen';
 import { HowToPlay } from './src/ui/components/HowToPlay';
+import { Tutorial } from './src/ui/components/Tutorial';
 
 type Screen = 'home' | 'daily' | 'endless' | 'results' | 'stats' | 'settings';
 
@@ -38,6 +39,7 @@ export default function App() {
   const [ready, setReady] = useState(false);
   const [screen, setScreen] = useState<Screen>('home');
   const [showHowTo, setShowHowTo] = useState(false);
+  const [showTutorial, setShowTutorial] = useState(false);
 
   const [today, setToday] = useState(() => dayKey());
   const [stats, setStats] = useState<Stats>(emptyStats);
@@ -62,7 +64,8 @@ export default function App() {
       setToday(key);
       setStats(s);
       setProgress(p);
-      setShowHowTo(!s.seenIntro);
+      // New players learn by playing; the written rules stay under How to play.
+      setShowTutorial(!s.seenIntro);
       setReady(true);
     })();
     return () => {
@@ -127,6 +130,15 @@ export default function App() {
 
   const handleCloseHowTo = useCallback(() => {
     setShowHowTo(false);
+    if (!stats.seenIntro) {
+      const next = { ...stats, seenIntro: true };
+      setStats(next);
+      void saveStats(next);
+    }
+  }, [stats]);
+
+  const handleCloseTutorial = useCallback(() => {
+    setShowTutorial(false);
     if (!stats.seenIntro) {
       const next = { ...stats, seenIntro: true };
       setStats(next);
@@ -199,7 +211,7 @@ export default function App() {
           )}
 
           {screen === 'settings' && (
-            <SettingsScreen onHowTo={() => setShowHowTo(true)} onExit={() => setScreen('home')} />
+            <SettingsScreen onHowTo={() => setShowTutorial(true)} onExit={() => setScreen('home')} />
           )}
 
           {screen === 'stats' && (
@@ -207,6 +219,18 @@ export default function App() {
           )}
 
           <HowToPlay visible={showHowTo} onClose={handleCloseHowTo} />
+          <Tutorial
+            visible={showTutorial}
+            onClose={handleCloseTutorial}
+            onRules={() => {
+              handleCloseTutorial();
+              setShowHowTo(true);
+            }}
+            onPlay={() => {
+              handleCloseTutorial();
+              handlePlayDaily();
+            }}
+          />
         </View>
       </SettingsProvider>
     </SafeAreaProvider>
