@@ -22,6 +22,17 @@ import {
 } from '../src/engine/puzzle';
 import { dailySet, endlessPuzzle, dayKey, puzzleNumber, daysBetween } from '../src/engine/daily';
 import { makeRng } from '../src/engine/rng';
+import {
+  bankAfterHint,
+  bankAfterSkip,
+  bankAfterSolve,
+  MAX_HINTS,
+  nextRank,
+  rankedUp,
+  rankFor,
+  startBank,
+  type HintBank,
+} from '../src/engine/ranks';
 
 declare const process: { exit(code: number): never };
 
@@ -278,6 +289,35 @@ console.log('\nSumday engine verification\n' + '='.repeat(46));
 }
 
 /* Report ----------------------------------------------------------------- */
+/* Endless ranks and hint bank ------------------------------------------ */
+{
+  check('no rank below 5', rankFor(4) === null);
+  check('bronze at 5', rankFor(5)?.name === 'Bronze');
+  check('gold at 19', rankFor(19)?.name === 'Gold');
+  check('diamond at 30+', rankFor(44)?.name === 'Diamond');
+  check('next from 12 is gold in 3', nextRank(12)?.rank.name === 'Gold' && nextRank(12)?.needed === 3);
+  check('no next at diamond', nextRank(30) === null);
+  check('rank up 4 -> 5', rankedUp(4, 5));
+  check('rank up 9 -> 16 (skips silver)', rankedUp(9, 16));
+  check('no rank up inside same rank', !rankedUp(11, 14));
+  check('no rank up on worse run', !rankedUp(20, 6));
+
+  let b: HintBank = startBank;
+  for (let i = 0; i < 4; i++) b = bankAfterSolve(b).bank;
+  check('4 solves no hint yet', b.hints === 3 && b.inRow === 4);
+  const fifth = bankAfterSolve(b);
+  check('5th solve earns a hint', fifth.earned && fifth.bank.hints === 4 && fifth.bank.inRow === 0);
+  check('skip breaks the row', bankAfterSkip(b).inRow === 0 && bankAfterSkip(b).hints === 3);
+  let full: HintBank = { hints: MAX_HINTS, inRow: 4 };
+  const atCap = bankAfterSolve(full);
+  check('full bank does not grow', !atCap.earned && atCap.bank.hints === MAX_HINTS && atCap.bank.inRow === 0);
+  full = { hints: 1, inRow: 0 };
+  check('spend last hint', bankAfterHint(full)?.hints === 0);
+  check('empty bank refuses', bankAfterHint({ hints: 0, inRow: 2 }) === null);
+
+  console.log('endless ranks and hint bank ............. ok');
+}
+
 console.log('='.repeat(46));
 if (failures === 0) {
   console.log('ALL CHECKS PASSED\n');
