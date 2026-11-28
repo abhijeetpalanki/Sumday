@@ -48,7 +48,14 @@
           "resizeMode": "contain"
         }
       ],
-      "expo-status-bar"
+      "expo-status-bar",
+      [
+        "expo-notifications",
+        {
+          "icon": "./assets/notification-icon.png",
+          "color": "#C6F24E"
+        }
+      ]
     ],
     "extra": {
       "eas": {

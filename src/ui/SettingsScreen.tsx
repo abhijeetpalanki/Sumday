@@ -1,10 +1,13 @@
-import { Platform, Pressable, ScrollView, StyleSheet, Switch, Text, View } from 'react-native';
+import { useState } from 'react';
+import { Linking, Platform, Pressable, ScrollView, StyleSheet, Switch, Text, View } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 
 import { theme } from './theme';
 import { Button } from './components/Button';
 import { useSettings } from './SettingsContext';
 import * as Haptics from './haptics';
+import { remindersSupported, requestReminderPermission } from '../reminders';
+import { formatHour, REMINDER_HOURS } from '../reminderPlan';
 
 interface Props {
   onHowTo: () => void;
@@ -14,6 +17,28 @@ interface Props {
 export function SettingsScreen({ onHowTo, onExit }: Props) {
   const insets = useSafeAreaInsets();
   const { settings, update } = useSettings();
+  const [reminderNote, setReminderNote] = useState<'denied' | 'blocked' | null>(null);
+  const [asking, setAsking] = useState(false);
+
+  const toggleReminder = async (next: boolean) => {
+    if (!next) {
+      update({ reminder: false });
+      setReminderNote(null);
+      return;
+    }
+    if (asking) return;
+    setAsking(true);
+    // The permission prompt appears only here, when the player asks for reminders.
+    const result = await requestReminderPermission();
+    setAsking(false);
+    if (result === 'granted') {
+      update({ reminder: true });
+      setReminderNote(null);
+      void Haptics.selectionAsync();
+    } else {
+      setReminderNote(result);
+    }
+  };
 
   return (
     <ScrollView
@@ -53,6 +78,66 @@ export function SettingsScreen({ onHowTo, onExit }: Props) {
           }}
         />
       </View>
+
+      {remindersSupported ? (
+        <>
+          <Text style={styles.sectionTitle}>Reminder</Text>
+          <View style={styles.group}>
+            <ToggleRow
+              label="Daily reminder"
+              sub={`One notification at ${formatHour(settings.reminderHour)} if you haven't played yet. It stops after a week away.`}
+              value={settings.reminder}
+              onChange={(next) => void toggleReminder(next)}
+            />
+            {settings.reminder ? (
+              <>
+                <View style={styles.divider} />
+                <View style={styles.hourRow} accessibilityRole="radiogroup" accessibilityLabel="Reminder time">
+                  {REMINDER_HOURS.map((h) => {
+                    const on = settings.reminderHour === h;
+                    return (
+                      <Pressable
+                        key={h}
+                        onPress={() => {
+                          if (on) return;
+                          void Haptics.selectionAsync();
+                          update({ reminderHour: h });
+                        }}
+                        hitSlop={6}
+                        accessibilityRole="radio"
+                        accessibilityState={{ checked: on }}
+                        accessibilityLabel={formatHour(h)}
+                        style={({ pressed }) => [styles.hourChip, on && styles.hourChipOn, pressed && styles.hourChipPressed]}
+                      >
+                        <Text style={[styles.hourText, on && styles.hourTextOn]}>{formatHour(h)}</Text>
+                      </Pressable>
+                    );
+                  })}
+                </View>
+              </>
+            ) : null}
+          </View>
+          {reminderNote ? (
+            <View style={styles.noteBox} accessibilityLiveRegion="polite">
+              <Text style={styles.noteText}>
+                {reminderNote === 'blocked'
+                  ? 'Notifications are turned off for Sumday. Turn them on in your phone settings to get reminders.'
+                  : 'Sumday needs permission to send the reminder. Turn it on again to retry.'}
+              </Text>
+              {reminderNote === 'blocked' ? (
+                <Pressable
+                  onPress={() => void Linking.openSettings()}
+                  hitSlop={8}
+                  accessibilityRole="button"
+                  accessibilityLabel="Open phone settings"
+                >
+                  <Text style={styles.noteLink}>Open settings</Text>
+                </Pressable>
+              ) : null}
+            </View>
+          ) : null}
+        </>
+      ) : null}
 
       <Text style={styles.sectionTitle}>Help</Text>
       <Button label="Replay tutorial" sublabel="See how to play again" onPress={onHowTo} />
@@ -147,6 +232,34 @@ const styles = StyleSheet.create({
   rowLabel: { color: theme.color.text, fontSize: 17, fontWeight: '800' },
   rowSub: { color: theme.color.textDim, fontSize: 13, fontWeight: '500', lineHeight: 18, marginTop: 3 },
   divider: { height: 1, backgroundColor: theme.color.border, marginLeft: theme.space(5) },
+  hourRow: {
+    flexDirection: 'row',
+    gap: theme.space(2),
+    paddingVertical: theme.space(4),
+    paddingHorizontal: theme.space(5),
+  },
+  hourChip: {
+    flex: 1,
+    alignItems: 'center',
+    paddingVertical: theme.space(2.5),
+    borderRadius: theme.radius.pill,
+    borderWidth: 1,
+    borderColor: theme.color.border,
+  },
+  hourChipOn: { borderColor: theme.color.accent, backgroundColor: 'rgba(198,242,78,0.10)' },
+  hourChipPressed: { backgroundColor: theme.color.tileActive },
+  hourText: { color: theme.color.textDim, fontSize: 14, fontWeight: '800' },
+  hourTextOn: { color: theme.color.accent },
+  noteBox: {
+    marginTop: theme.space(3),
+    padding: theme.space(4),
+    borderRadius: theme.radius.md,
+    borderWidth: 1,
+    borderColor: theme.color.gold,
+    gap: theme.space(2),
+  },
+  noteText: { color: theme.color.textDim, fontSize: 13, fontWeight: '600', lineHeight: 19 },
+  noteLink: { color: theme.color.gold, fontSize: 14, fontWeight: '800' },
   privacy: {
     color: theme.color.textFaint,
     fontSize: 13,

@@ -25,6 +25,7 @@ import { defaultSettings, loadSettings, type Settings } from './src/state/settin
 import { theme } from './src/ui/theme';
 import { SettingsProvider } from './src/ui/SettingsContext';
 import { SettingsScreen } from './src/ui/SettingsScreen';
+import { ReminderSync } from './src/ui/ReminderSync';
 import { HomeScreen } from './src/ui/HomeScreen';
 import { DailyScreen } from './src/ui/DailyScreen';
 import { EndlessScreen } from './src/ui/EndlessScreen';
@@ -165,6 +166,7 @@ export default function App() {
       <SettingsProvider initial={initialSettings}>
         <View style={styles.root}>
           <StatusBar style="light" />
+          <ReminderSync stats={stats} progress={progress} todayKey={today} />
 
           {screen === 'home' && (
             <HomeScreen

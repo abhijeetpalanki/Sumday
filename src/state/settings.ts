@@ -7,6 +7,8 @@
 
 import AsyncStorage from '@react-native-async-storage/async-storage';
 
+import { DEFAULT_REMINDER_HOUR, REMINDER_HOURS } from '../reminderPlan';
+
 const SETTINGS_KEY = 'sumday.settings.v1';
 
 export interface Settings {
@@ -20,6 +22,10 @@ export interface Settings {
   calmMotion: boolean;
   /** Vibration feedback on taps, merges and mistakes. */
   haptics: boolean;
+  /** One local notification a day while today's daily is unplayed. Off until the player opts in. */
+  reminder: boolean;
+  /** Hour of the day for the reminder, one of REMINDER_HOURS. */
+  reminderHour: number;
 }
 
 export const defaultSettings: Settings = {
@@ -27,6 +33,8 @@ export const defaultSettings: Settings = {
   showTimer: true,
   calmMotion: false,
   haptics: true,
+  reminder: false,
+  reminderHour: DEFAULT_REMINDER_HOUR,
 };
 
 export async function loadSettings(): Promise<Settings> {
@@ -41,6 +49,10 @@ export async function loadSettings(): Promise<Settings> {
       showTimer: typeof parsed.showTimer === 'boolean' ? parsed.showTimer : defaultSettings.showTimer,
       calmMotion: typeof parsed.calmMotion === 'boolean' ? parsed.calmMotion : defaultSettings.calmMotion,
       haptics: typeof parsed.haptics === 'boolean' ? parsed.haptics : defaultSettings.haptics,
+      reminder: typeof parsed.reminder === 'boolean' ? parsed.reminder : defaultSettings.reminder,
+      reminderHour: (REMINDER_HOURS as readonly number[]).includes(parsed.reminderHour ?? -1)
+        ? (parsed.reminderHour as number)
+        : defaultSettings.reminderHour,
     };
   } catch {
     return defaultSettings;
