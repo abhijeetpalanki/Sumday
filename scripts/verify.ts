@@ -22,6 +22,15 @@ import {
 } from '../src/engine/puzzle';
 import { dailySet, endlessPuzzle, dayKey, puzzleNumber, daysBetween } from '../src/engine/daily';
 import { makeRng } from '../src/engine/rng';
+import {
+  daysToShield,
+  effectiveStreak,
+  recordDaily,
+  shieldNewsToday,
+  shieldPending,
+  SHIELD_EVERY,
+} from '../src/state/streak';
+import type { SlotResult, Stats } from '../src/state/storage';
 
 declare const process: { exit(code: number): never };
 
@@ -278,7 +287,80 @@ console.log('\nSumday engine verification\n' + '='.repeat(46));
 }
 
 /* Report ----------------------------------------------------------------- */
+/* Streaks and streak shields ------------------------------------------ */
+{
+  const blank: Stats = {
+    version: 1,
+    lastPlayedKey: null,
+    currentStreak: 0,
+    maxStreak: 0,
+    played: 0,
+    perfect: 0,
+    totalSolved: 0,
+    distribution: [0, 0, 0, 0, 0, 0],
+    endlessBest: 0,
+    endlessGames: 0,
+    totalHints: 0,
+    seenIntro: true,
+    shields: 0,
+    shieldsUsed: 0,
+    shieldEarnedKey: null,
+    shieldSavedKey: null,
+  };
+  const win: SlotResult = { status: 'solved', ops: 2, par: 2, ms: 1000, hints: 0 };
+  const run = [win, win, win, win, win];
+  const key = (day: number) => dayKey(new Date(2026, 11, day));
+
+  // Play Dec 1..7: a 7-day streak earns one shield.
+  let s = blank;
+  for (let d = 1; d <= SHIELD_EVERY; d++) s = recordDaily(s, key(d), run);
+  check('7 days builds a 7 streak', s.currentStreak === 7, String(s.currentStreak));
+  check('7-day streak earns a shield', s.shields === 1 && s.shieldEarnedKey === key(7));
+
+  // Replaying the same day changes nothing.
+  check('same-day replay is a no-op', recordDaily(s, key(7), run) === s);
+
+  // Miss Dec 8. On Dec 9 the streak is still shown and the shield is pending.
+  check('shield holds streak across one missed day', effectiveStreak(s, key(9)) === 7);
+  check('shield is pending after one missed day', shieldPending(s, key(9)));
+  const saved = recordDaily(s, key(9), run);
+  check('shield carries streak on', saved.currentStreak === 8, String(saved.currentStreak));
+  check('shield is spent', saved.shields === 0 && saved.shieldsUsed === 1);
+  check('saved day is recorded', saved.shieldSavedKey === key(8), String(saved.shieldSavedKey));
+  check('results shows the save today', shieldNewsToday(saved, key(9)).saved);
+  check('save is not shown tomorrow', !shieldNewsToday(recordDaily(saved, key(10), run), key(10)).saved);
+  check('earned shows on day 7', shieldNewsToday(s, key(7)).earned);
+  check('6 days to next shield after spending at 8', daysToShield(saved, key(9)) === 6, String(daysToShield(saved, key(9))));
+  check('0 days to shield when one is banked', daysToShield(s, key(7)) === 0);
+
+  // Without a shield, one missed day resets.
+  check('no shield, missed day shows 0', effectiveStreak(saved, key(11)) === 0);
+  check('no shield, missed day resets', recordDaily(saved, key(11), run).currentStreak === 1);
+
+  // Two missed days end the streak even with a shield.
+  check('two missed days end streak', effectiveStreak(s, key(10)) === 0);
+  check('two missed days reset on play', recordDaily(s, key(10), run).currentStreak === 1);
+  check('two missed days keep the shield', recordDaily(s, key(10), run).shields === 1);
+
+  // Never hold more than one shield.
+  let t = blank;
+  for (let d = 1; d <= 14; d++) t = recordDaily(t, key(d), run);
+  check('shields cap at one', t.shields === 1, String(t.shields));
+
+  // A shield spent on day 14 is re-earned the same day.
+  let u = blank;
+  for (let d = 1; d <= 7; d++) u = recordDaily(u, key(d), run);
+  for (let d = 8; d <= 12; d++) u = recordDaily(u, key(d), run); // streak 12, shield banked
+  u = recordDaily(u, key(14), run); // missed 13, streak 13
+  check('spend then streak 13', u.currentStreak === 13 && u.shields === 0);
+  u = recordDaily(u, key(15), run);
+  check('re-earn at 14', u.currentStreak === 14 && u.shields === 1);
+
+  console.log('streaks and shields ..................... ok');
+}
+
 console.log('='.repeat(46));
+
 if (failures === 0) {
   console.log('ALL CHECKS PASSED\n');
 } else {

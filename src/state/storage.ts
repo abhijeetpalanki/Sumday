@@ -7,7 +7,6 @@
  */
 
 import AsyncStorage from '@react-native-async-storage/async-storage';
-import { daysBetween } from '../engine/daily';
 
 const STATS_KEY = 'sumday.stats.v1';
 const PROGRESS_KEY = 'sumday.progress.v1';
@@ -52,6 +51,14 @@ export interface Stats {
   totalHints: number;
   /** First-run tutorial has been shown. */
   seenIntro: boolean;
+  /** Streak shields banked, 0 to MAX_SHIELDS. One covers one missed day. */
+  shields: number;
+  /** Lifetime shields spent. */
+  shieldsUsed: number;
+  /** The day a shield was last earned, to celebrate it once on Results. */
+  shieldEarnedKey: string | null;
+  /** The missed day a shield last covered, to explain the save on Results. */
+  shieldSavedKey: string | null;
 }
 
 export const emptyStats: Stats = {
@@ -67,6 +74,10 @@ export const emptyStats: Stats = {
   endlessGames: 0,
   totalHints: 0,
   seenIntro: false,
+  shields: 0,
+  shieldsUsed: 0,
+  shieldEarnedKey: null,
+  shieldSavedKey: null,
 };
 
 export function emptyProgress(key: string): DailyProgress {
@@ -149,50 +160,17 @@ export async function saveProgress(progress: DailyProgress): Promise<void> {
 
 /* ---------------------------------------------------------------- */
 
-/**
- * The streak the player should actually see today.
- *
- * A stored streak stays "alive" while the last completed day is today or
- * yesterday; any wider gap means it has lapsed, and we show 0 without needing
- * a background job to expire it.
- */
-export function effectiveStreak(stats: Stats, todayKey: string): number {
-  if (!stats.lastPlayedKey) return 0;
-  const gap = daysBetween(stats.lastPlayedKey, todayKey);
-  return gap <= 1 && gap >= 0 ? stats.currentStreak : 0;
-}
-
-/** Fold a finished daily run into the lifetime stats. Pure, so it is testable. */
-export function recordDaily(stats: Stats, todayKey: string, results: (SlotResult | null)[]): Stats {
-  // Re-recording the same day (app relaunch on the results screen) must not
-  // inflate the streak.
-  if (stats.lastPlayedKey === todayKey) return stats;
-
-  const solved = results.filter((r) => r?.status === 'solved').length;
-  if (solved === 0) return stats; // a run where nothing was solved does not extend a streak
-
-  const gap = stats.lastPlayedKey ? daysBetween(stats.lastPlayedKey, todayKey) : Infinity;
-  const currentStreak = gap === 1 ? stats.currentStreak + 1 : 1;
-
-  const distribution = stats.distribution.slice();
-  distribution[solved] = (distribution[solved] ?? 0) + 1;
-
-  const hints = results.reduce((sum, r) => sum + (r?.hints ?? 0), 0);
-  // A perfect day means five squares earned without help.
-  const flawless = solved === 5 && hints === 0;
-
-  return {
-    ...stats,
-    lastPlayedKey: todayKey,
-    currentStreak,
-    maxStreak: Math.max(stats.maxStreak, currentStreak),
-    played: stats.played + 1,
-    perfect: stats.perfect + (flawless ? 1 : 0),
-    totalSolved: stats.totalSolved + solved,
-    totalHints: stats.totalHints + hints,
-    distribution,
-  };
-}
+// Streak rules live in a module with no storage imports so the Node verify
+// harness can test them.
+export {
+  daysToShield,
+  effectiveStreak,
+  recordDaily,
+  shieldNewsToday,
+  shieldPending,
+  MAX_SHIELDS,
+  SHIELD_EVERY,
+} from './streak';
 
 export function recordEndless(stats: Stats, score: number): Stats {
   return {

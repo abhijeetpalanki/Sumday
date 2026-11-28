@@ -5,7 +5,7 @@ import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { theme } from './theme';
 import { Button } from './components/Button';
 import { InstallHint } from './components/InstallHint';
-import { effectiveStreak, type DailyProgress, type Stats } from '../state/storage';
+import { effectiveStreak, shieldPending, type DailyProgress, type Stats } from '../state/storage';
 
 interface Props {
   puzzleNumber: number;
@@ -34,6 +34,9 @@ export function HomeScreen({
 }: Props) {
   const insets = useSafeAreaInsets();
   const streak = effectiveStreak(stats, todayKey);
+  // Yesterday was missed and a shield is holding the streak open until today ends.
+  const atRisk = shieldPending(stats, todayKey) && !progress.finished;
+  const hasShield = stats.shields > 0;
 
   const done = progress.results.filter((r) => r !== null).length;
   const solved = progress.results.filter((r) => r?.status === 'solved').length;
@@ -57,9 +60,25 @@ export function HomeScreen({
         </Text>
       </Animated.View>
 
-      {streak > 0 ? (
-        <Animated.View entering={FadeInDown.delay(80).duration(420)} style={styles.streakChip}>
-          <Text style={styles.streakText}>🔥 {streak} day streak</Text>
+      {atRisk ? (
+        <Animated.View
+          entering={FadeInDown.delay(80).duration(420)}
+          style={[styles.streakChip, styles.streakChipRisk]}
+          accessible
+          accessibilityLabel={`You missed yesterday. Play today and your shield saves your ${streak} day streak.`}
+        >
+          <Text style={styles.streakText}>🛡 Play today to save your {streak}-day streak</Text>
+        </Animated.View>
+      ) : streak > 0 ? (
+        <Animated.View
+          entering={FadeInDown.delay(80).duration(420)}
+          style={styles.streakChip}
+          accessible
+          accessibilityLabel={`${streak} day streak${hasShield ? ', streak shield ready' : ''}`}
+        >
+          <Text style={styles.streakText}>
+            🔥 {streak} day streak{hasShield ? '  ·  🛡' : ''}
+          </Text>
         </Animated.View>
       ) : (
         <View style={styles.streakSpacer} />
@@ -120,6 +139,7 @@ const styles = StyleSheet.create({
     borderWidth: 1,
     borderColor: theme.color.border,
   },
+  streakChipRisk: { borderColor: theme.color.gold },
   streakText: { color: theme.color.gold, fontSize: 14, fontWeight: '800' },
   streakSpacer: { height: theme.space(5) + 34 },
   spacer: { flex: 1 },

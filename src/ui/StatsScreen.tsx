@@ -3,7 +3,7 @@ import { useSafeAreaInsets } from 'react-native-safe-area-context';
 
 import { theme } from './theme';
 import { Button } from './components/Button';
-import { effectiveStreak, type Stats } from '../state/storage';
+import { daysToShield, effectiveStreak, SHIELD_EVERY, type Stats } from '../state/storage';
 
 interface Props {
   stats: Stats;
@@ -14,6 +14,11 @@ interface Props {
 export function StatsScreen({ stats, todayKey, onExit }: Props) {
   const insets = useSafeAreaInsets();
   const streak = effectiveStreak(stats, todayKey);
+  const toGo = daysToShield(stats, todayKey);
+  const shieldText =
+    stats.shields > 0
+      ? 'Streak shield ready. If you miss a day, it keeps your streak going.'
+      : `Keep a ${SHIELD_EVERY}-day streak to earn a shield. ${toGo} ${toGo === 1 ? 'day' : 'days'} to go.`;
 
   const solveRate = stats.played > 0 ? Math.round((stats.totalSolved / (stats.played * 5)) * 100) : 0;
   const maxBar = Math.max(1, ...stats.distribution);
@@ -34,6 +39,11 @@ export function StatsScreen({ stats, todayKey, onExit }: Props) {
         <Cell value={`${solveRate}%`} label={'puzzles\nsolved'} />
         <Cell value={String(streak)} label={'current\nstreak'} accent={streak > 0} />
         <Cell value={String(stats.maxStreak)} label={'max\nstreak'} />
+      </View>
+
+      <View style={styles.shieldRow} accessible accessibilityLabel={shieldText}>
+        <Text style={styles.shieldIcon}>🛡</Text>
+        <Text style={[styles.shieldText, stats.shields > 0 && styles.shieldTextReady]}>{shieldText}</Text>
       </View>
 
       <Text style={styles.sectionTitle}>Puzzles solved per day</Text>
@@ -89,6 +99,21 @@ const styles = StyleSheet.create({
     marginBottom: theme.space(7),
   },
   row: { flexDirection: 'row', justifyContent: 'space-between' },
+  shieldRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: theme.space(3),
+    marginTop: theme.space(6),
+    paddingVertical: theme.space(3),
+    paddingHorizontal: theme.space(4),
+    borderRadius: theme.radius.md,
+    borderWidth: 1,
+    borderColor: theme.color.border,
+    backgroundColor: theme.color.surfaceHigh,
+  },
+  shieldIcon: { fontSize: 18 },
+  shieldText: { flex: 1, color: theme.color.textDim, fontSize: 13, fontWeight: '700', lineHeight: 18 },
+  shieldTextReady: { color: theme.color.gold },
   cell: { alignItems: 'center', flex: 1 },
   cellValue: {
     color: theme.color.text,

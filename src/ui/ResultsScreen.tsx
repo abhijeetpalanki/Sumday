@@ -10,7 +10,7 @@ import { buildShareText, formatTime, slotEmoji } from '../share';
 import { shareResult } from '../shareResult';
 import { msUntilNextLocalMidnight } from '../engine/daily';
 import type { DailyProgress, Stats } from '../state/storage';
-import { effectiveStreak } from '../state/storage';
+import { effectiveStreak, shieldNewsToday } from '../state/storage';
 import { useSettings } from './SettingsContext';
 import { SolutionsSheet } from './components/SolutionsSheet';
 import type { Puzzle } from '../engine/puzzle';
@@ -51,6 +51,14 @@ export function ResultsScreen({ puzzleNumber, todayKey, puzzles, progress, stats
   // "At par" means the green square: par moves, no hints.
   const atPar = progress.results.filter((r) => slotEmoji(r) === '🟩').length;
   const streak = effectiveStreak(stats, todayKey);
+  const shieldNews = shieldNewsToday(stats, todayKey);
+  const shieldLine = shieldNews.saved
+    ? shieldNews.earned
+      ? 'Your shield covered yesterday, and you earned a new one.'
+      : 'Your shield covered yesterday. Streak saved.'
+    : shieldNews.earned
+      ? 'Streak shield earned. It covers one missed day.'
+      : null;
 
   const handleShare = useCallback(() => {
     void Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium);
@@ -121,6 +129,17 @@ export function ResultsScreen({ puzzleNumber, todayKey, puzzles, progress, stats
         {settings.showTimer ? <Stat value={formatTime(progress.elapsedMs)} label="time" /> : null}
         <Stat value={String(streak)} label="streak" accent={streak > 0} />
       </Animated.View>
+
+      {shieldLine ? (
+        <Animated.View
+          entering={FadeInDown.delay(680).duration(400)}
+          style={styles.shieldBanner}
+          accessible
+          accessibilityLiveRegion="polite"
+        >
+          <Text style={styles.shieldText}>🛡 {shieldLine}</Text>
+        </Animated.View>
+      ) : null}
 
       <View style={styles.spacer} />
 
@@ -196,6 +215,17 @@ const styles = StyleSheet.create({
     letterSpacing: 1,
     marginTop: 4,
   },
+  shieldBanner: {
+    alignSelf: 'stretch',
+    marginTop: theme.space(6),
+    paddingVertical: theme.space(3),
+    paddingHorizontal: theme.space(4),
+    borderRadius: theme.radius.md,
+    borderWidth: 1,
+    borderColor: theme.color.gold,
+    backgroundColor: 'rgba(255,198,75,0.08)',
+  },
+  shieldText: { color: theme.color.gold, fontSize: 14, fontWeight: '800', textAlign: 'center' },
   spacer: { flex: 1, minHeight: theme.space(6) },
   nextLabel: {
     color: theme.color.textFaint,
