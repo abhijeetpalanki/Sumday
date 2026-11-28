@@ -22,7 +22,7 @@ import {
 } from '../src/engine/puzzle';
 import { dailySet, endlessPuzzle, dayKey, puzzleNumber, daysBetween } from '../src/engine/daily';
 import { makeRng } from '../src/engine/rng';
-import { buildShareText, slotEmoji } from '../src/share';
+import { buildShareCard, buildShareText, slotEmoji, slotKind, SQUARE_COLORS } from '../src/share';
 import type { SlotResult } from '../src/state/storage';
 
 declare const process: { exit(code: number): never };
@@ -292,6 +292,42 @@ console.log('\nSumday engine verification\n' + '='.repeat(46));
   check('contrast share grid', text.includes('🟧🟧🟧🟧🟧'), text);
   check('contrast perfect still detected', text.includes('perfect'), text);
   console.log('high-contrast share grid ................ ok');
+}
+
+{
+  console.log('\nShare image');
+  const par: SlotResult = { status: 'solved', ops: 2, par: 2, ms: 1, hints: 0 };
+  const over: SlotResult = { status: 'solved', ops: 3, par: 2, ms: 1, hints: 0 };
+  const hinted: SlotResult = { status: 'solved', ops: 2, par: 2, ms: 1, hints: 1 };
+  const skip: SlotResult = { status: 'skipped', ops: 0, par: 2, ms: 1, hints: 0 };
+  check('kind: par', slotKind(par) === 'par');
+  check('kind: over par is over', slotKind(over) === 'over');
+  check('kind: hinted caps at over', slotKind(hinted) === 'over');
+  check('kind: skipped and unplayed are misses', slotKind(skip) === 'miss' && slotKind(null) === 'miss');
+  const results = [par, over, hinted, skip, null];
+  check(
+    'kinds agree with the emoji grid',
+    results.every((r) => {
+      const e = slotEmoji(r);
+      const k = slotKind(r);
+      return (e === '🟩' && k === 'par') || (e === '🟨' && k === 'over') || (e === '⬜' && k === 'miss');
+    }),
+  );
+
+  const card = buildShareCard({ puzzleNumber: 42, results, elapsedMs: 247000, streak: 6 });
+  check('card title and subtitle', card.title === 'Sumday #42' && card.subtitle === 'No. 42');
+  check('card score counts solves', card.score === '3/5 solved', card.score);
+  check('card meta has time and streak', card.meta === '4:07  ·  🔥 6', card.meta);
+  check('card has five squares', card.squares.length === 5);
+  check('card colours follow the palette', card.squares[0].color === SQUARE_COLORS.standard.par);
+  check('card url drops the scheme', !card.url.startsWith('http') && card.url.includes('netlify.app'));
+
+  const hc = buildShareCard({ puzzleNumber: 42, results, elapsedMs: 0, streak: 1, palette: 'contrast', showTime: false });
+  check('contrast palette colours', hc.squares[0].color === SQUARE_COLORS.contrast.par && hc.squares[1].color === SQUARE_COLORS.contrast.over);
+  check('no meta without time or a streak', hc.meta === '', hc.meta);
+
+  const perfect = buildShareCard({ puzzleNumber: 1, results: [par, par, par, par, par], elapsedMs: 60000, streak: 0 });
+  check('perfect day says so', perfect.meta.endsWith('perfect'), perfect.meta);
 }
 
 console.log('='.repeat(46));
