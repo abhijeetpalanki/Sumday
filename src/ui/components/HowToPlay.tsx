@@ -59,7 +59,8 @@ export function HowToPlay({ visible, onClose }: Props) {
             <Text style={styles.sectionTitle}>Your daily</Text>
             <Text style={styles.body}>
               Five puzzles, getting harder. Everyone in the world gets the same five. Come back
-              tomorrow to keep your streak alive.
+              tomorrow to keep your streak alive. Every 7-day streak earns a shield, which saves
+              your streak if you miss a single day.
             </Text>
 
             <View style={styles.exampleBox}>
