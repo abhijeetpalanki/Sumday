@@ -1,13 +1,15 @@
-import { useCallback, useEffect, useState } from 'react';
-import { AccessibilityInfo, StyleSheet, Text, View } from 'react-native';
+import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
+import { AccessibilityInfo, Platform, StyleSheet, Text, View } from 'react-native';
 import Animated, { FadeIn, FadeInDown } from 'react-native-reanimated';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import * as Haptics from './haptics';
 
 import { theme } from './theme';
 import { Button } from './components/Button';
-import { buildShareText, formatTime, slotEmoji } from '../share';
+import { buildShareCard, buildShareText, formatTime, slotEmoji } from '../share';
 import { shareResult } from '../shareResult';
+import { imageShareLabel, shareImage } from '../shareImage';
+import { ShareCard } from './components/ShareCard';
 import { msUntilNextLocalMidnight } from '../engine/daily';
 import type { DailyProgress, Stats } from '../state/storage';
 import { effectiveStreak } from '../state/storage';
@@ -39,6 +41,9 @@ export function ResultsScreen({ puzzleNumber, todayKey, puzzles, progress, stats
   const insets = useSafeAreaInsets();
   const [untilTomorrow, setUntilTomorrow] = useState(() => msUntilNextLocalMidnight());
   const [shareLabel, setShareLabel] = useState<string | null>(null);
+  const [imageLabel, setImageLabel] = useState<string | null>(null);
+  const [imageBusy, setImageBusy] = useState(false);
+  const cardRef = useRef<View>(null);
   const { settings } = useSettings();
   const [showSolutions, setShowSolutions] = useState(false);
 
@@ -60,16 +65,47 @@ export function ResultsScreen({ puzzleNumber, todayKey, puzzles, progress, stats
       elapsedMs: progress.elapsedMs,
       streak,
       showTime: settings.showTimer,
+      palette: settings.highContrast ? 'contrast' : 'standard',
     });
     void shareResult(message).then((outcome) => {
       const label =
-        outcome === 'copied' ? 'Copied to clipboard' : outcome === 'failed' ? 'Couldn’t share. Try again' : null;
+        outcome === 'copied' ? 'Copied' : outcome === 'failed' ? 'Couldn’t share' : null;
       if (label) {
         setShareLabel(label);
         AccessibilityInfo.announceForAccessibility(label);
       }
     });
-  }, [progress.elapsedMs, progress.results, puzzleNumber, settings.showTimer, streak]);
+  }, [progress.elapsedMs, progress.results, puzzleNumber, settings.showTimer, settings.highContrast, streak]);
+
+  const palette = settings.highContrast ? 'contrast' : 'standard';
+  const card = useMemo(
+    () =>
+      buildShareCard({
+        puzzleNumber,
+        results: progress.results,
+        elapsedMs: progress.elapsedMs,
+        streak,
+        showTime: settings.showTimer,
+        palette,
+      }),
+    [palette, progress.elapsedMs, progress.results, puzzleNumber, settings.showTimer, streak],
+  );
+  const defaultImageLabel = useMemo(() => imageShareLabel(), []);
+
+  const handleShareImage = useCallback(() => {
+    if (imageBusy) return;
+    void Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium);
+    setImageBusy(true);
+    void shareImage({ view: cardRef, card, filename: `sumday-${puzzleNumber}.png` })
+      .then((outcome) => {
+        const label = outcome === 'saved' ? 'Image saved' : outcome === 'failed' ? 'Couldn’t share' : null;
+        if (label) {
+          setImageLabel(label);
+          AccessibilityInfo.announceForAccessibility(label);
+        }
+      })
+      .finally(() => setImageBusy(false));
+  }, [card, imageBusy, puzzleNumber]);
 
   // The confirmation reads on the button itself, then reverts.
   useEffect(() => {
@@ -77,6 +113,12 @@ export function ResultsScreen({ puzzleNumber, todayKey, puzzles, progress, stats
     const id = setTimeout(() => setShareLabel(null), 2200);
     return () => clearTimeout(id);
   }, [shareLabel]);
+
+  useEffect(() => {
+    if (imageLabel === null) return;
+    const id = setTimeout(() => setImageLabel(null), 2200);
+    return () => clearTimeout(id);
+  }, [imageLabel]);
 
   const headline =
     atPar === 5
@@ -110,7 +152,7 @@ export function ResultsScreen({ puzzleNumber, todayKey, puzzles, progress, stats
             entering={FadeInDown.delay(250 + i * 80).duration(360)}
             style={styles.square}
           >
-            {slotEmoji(r)}
+            {slotEmoji(r, settings.highContrast ? 'contrast' : 'standard')}
           </Animated.Text>
         ))}
       </Animated.View>
@@ -130,13 +172,38 @@ export function ResultsScreen({ puzzleNumber, todayKey, puzzles, progress, stats
       </Animated.View>
 
       <Animated.View entering={FadeInDown.delay(800).duration(400)} style={styles.actions}>
-        <Button label={shareLabel ?? 'Share result'} variant="primary" onPress={handleShare} />
+        <View style={styles.pair}>
+          <Button
+            label={shareLabel ?? 'Share text'}
+            variant="primary"
+            onPress={handleShare}
+            style={styles.shareBtn}
+          />
+          <Button
+            label={imageLabel ?? defaultImageLabel}
+            onPress={handleShareImage}
+            disabled={imageBusy}
+            style={styles.shareBtn}
+          />
+        </View>
         <View style={styles.pair}>
           <Button label="Solutions" onPress={() => setShowSolutions(true)} style={styles.half} />
           <Button label="Statistics" onPress={onStats} style={styles.half} />
         </View>
         <Button label="Back" variant="ghost" onPress={onExit} />
       </Animated.View>
+
+      {Platform.OS !== 'web' ? (
+        // Laid out off screen so it can be captured; web draws the same card on a canvas.
+        <View
+          pointerEvents="none"
+          accessibilityElementsHidden
+          importantForAccessibility="no-hide-descendants"
+          style={styles.offscreen}
+        >
+          <ShareCard ref={cardRef} card={card} />
+        </View>
+      ) : null}
 
       <SolutionsSheet
         visible={showSolutions}
@@ -216,4 +283,6 @@ const styles = StyleSheet.create({
   actions: { alignSelf: 'stretch', gap: theme.space(3), marginTop: theme.space(8) },
   pair: { flexDirection: 'row', gap: theme.space(3) },
   half: { flex: 1, justifyContent: 'center' },
+  shareBtn: { flex: 1, justifyContent: 'center', paddingHorizontal: theme.space(3) },
+  offscreen: { position: 'absolute', left: -10000, top: 0 },
 });
