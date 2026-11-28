@@ -13,5 +13,5 @@
     "skipLibCheck": true,
     "outDir": ".verify-out"
   },
-  "include": ["src/engine/**/*.ts", "scripts/verify.ts"]
+  "include": ["src/engine/**/*.ts", "src/share.ts", "scripts/verify.ts"]
 }

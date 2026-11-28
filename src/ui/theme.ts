@@ -21,6 +21,9 @@ export const theme = {
     success: '#4ADE80',
     warn: '#FF6B6B',
     gold: '#FFC64B',
+    /** High-contrast results: orange and blue stay apart for red-green colour blindness. */
+    contrastPar: '#FF8A3D',
+    contrastOver: '#4DA3FF',
 
     text: '#F2F4F8',
     textDim: '#8B93A7',

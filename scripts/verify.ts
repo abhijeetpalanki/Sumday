@@ -22,6 +22,8 @@ import {
 } from '../src/engine/puzzle';
 import { dailySet, endlessPuzzle, dayKey, puzzleNumber, daysBetween } from '../src/engine/daily';
 import { makeRng } from '../src/engine/rng';
+import { buildShareText, slotEmoji } from '../src/share';
+import type { SlotResult } from '../src/state/storage';
 
 declare const process: { exit(code: number): never };
 
@@ -278,6 +280,20 @@ console.log('\nSumday engine verification\n' + '='.repeat(46));
 }
 
 /* Report ----------------------------------------------------------------- */
+/* High-contrast share grid --------------------------------------------- */
+{
+  const par: SlotResult = { status: 'solved', ops: 2, par: 2, ms: 1, hints: 0 };
+  const over: SlotResult = { status: 'solved', ops: 3, par: 2, ms: 1, hints: 0 };
+  const hinted: SlotResult = { status: 'solved', ops: 2, par: 2, ms: 1, hints: 1 };
+  const skip: SlotResult = { status: 'skipped', ops: 0, par: 2, ms: 1, hints: 0 };
+  check('standard palette', [par, over, hinted, skip].map((r) => slotEmoji(r)).join('') === '🟩🟨🟨⬜');
+  check('contrast palette', [par, over, hinted, skip].map((r) => slotEmoji(r, 'contrast')).join('') === '🟧🟦🟦⬜');
+  const text = buildShareText({ puzzleNumber: 9, results: [par, par, par, par, par], elapsedMs: 0, streak: 0, showTime: false, palette: 'contrast' });
+  check('contrast share grid', text.includes('🟧🟧🟧🟧🟧'), text);
+  check('contrast perfect still detected', text.includes('perfect'), text);
+  console.log('high-contrast share grid ................ ok');
+}
+
 console.log('='.repeat(46));
 if (failures === 0) {
   console.log('ALL CHECKS PASSED\n');

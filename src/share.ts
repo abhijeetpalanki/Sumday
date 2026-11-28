@@ -30,14 +30,27 @@ export function formatTime(ms: number): string {
 }
 
 /**
+ * Colour palette for result squares. 'contrast' swaps green and yellow for
+ * orange and blue, which stay distinct for red-green colour blindness (the
+ * same swap Wordle's high-contrast mode makes).
+ */
+export type Palette = 'standard' | 'contrast';
+
+const SQUARES: Record<Palette, { par: string; over: string }> = {
+  standard: { par: '🟩', over: '🟨' },
+  contrast: { par: '🟧', over: '🟦' },
+};
+
+/**
  * Green is reserved for solving at par unaided. A hinted solve caps at yellow
  * rather than getting its own symbol: the grid stays three colours and still
  * gives nothing away about the puzzle itself.
  */
-export function slotEmoji(r: SlotResult | null): string {
+export function slotEmoji(r: SlotResult | null, palette: Palette = 'standard'): string {
   if (!r || r.status === 'skipped') return '⬜';
-  if ((r.hints ?? 0) > 0) return '🟨';
-  return r.ops <= r.par ? '🟩' : '🟨';
+  const sq = SQUARES[palette];
+  if ((r.hints ?? 0) > 0) return sq.over;
+  return r.ops <= r.par ? sq.par : sq.over;
 }
 
 export function buildShareText(opts: {
@@ -47,10 +60,11 @@ export function buildShareText(opts: {
   streak: number;
   /** Off when the player has hidden the timer; the line then leads with the streak. */
   showTime?: boolean;
+  palette?: Palette;
 }): string {
-  const { puzzleNumber, results, elapsedMs, streak, showTime = true } = opts;
+  const { puzzleNumber, results, elapsedMs, streak, showTime = true, palette = 'standard' } = opts;
   const solved = results.filter((r) => r?.status === 'solved').length;
-  const grid = results.map(slotEmoji).join('');
+  const grid = results.map((r) => slotEmoji(r, palette)).join('');
 
   const lines = [`Sumday #${puzzleNumber}  ${solved}/5`, grid];
 

@@ -60,6 +60,7 @@ export function ResultsScreen({ puzzleNumber, todayKey, puzzles, progress, stats
       elapsedMs: progress.elapsedMs,
       streak,
       showTime: settings.showTimer,
+      palette: settings.highContrast ? 'contrast' : 'standard',
     });
     void shareResult(message).then((outcome) => {
       const label =
@@ -69,7 +70,7 @@ export function ResultsScreen({ puzzleNumber, todayKey, puzzles, progress, stats
         AccessibilityInfo.announceForAccessibility(label);
       }
     });
-  }, [progress.elapsedMs, progress.results, puzzleNumber, settings.showTimer, streak]);
+  }, [progress.elapsedMs, progress.results, puzzleNumber, settings.showTimer, settings.highContrast, streak]);
 
   // The confirmation reads on the button itself, then reverts.
   useEffect(() => {
@@ -110,7 +111,7 @@ export function ResultsScreen({ puzzleNumber, todayKey, puzzles, progress, stats
             entering={FadeInDown.delay(250 + i * 80).duration(360)}
             style={styles.square}
           >
-            {slotEmoji(r)}
+            {slotEmoji(r, settings.highContrast ? 'contrast' : 'standard')}
           </Animated.Text>
         ))}
       </Animated.View>

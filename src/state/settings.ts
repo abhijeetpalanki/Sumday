@@ -20,6 +20,8 @@ export interface Settings {
   calmMotion: boolean;
   /** Vibration feedback on taps, merges and mistakes. */
   haptics: boolean;
+  /** Orange and blue result colours instead of green and yellow, for colour-blind players. */
+  highContrast: boolean;
 }
 
 export const defaultSettings: Settings = {
@@ -27,6 +29,7 @@ export const defaultSettings: Settings = {
   showTimer: true,
   calmMotion: false,
   haptics: true,
+  highContrast: false,
 };
 
 export async function loadSettings(): Promise<Settings> {
@@ -41,6 +44,8 @@ export async function loadSettings(): Promise<Settings> {
       showTimer: typeof parsed.showTimer === 'boolean' ? parsed.showTimer : defaultSettings.showTimer,
       calmMotion: typeof parsed.calmMotion === 'boolean' ? parsed.calmMotion : defaultSettings.calmMotion,
       haptics: typeof parsed.haptics === 'boolean' ? parsed.haptics : defaultSettings.haptics,
+      highContrast:
+        typeof parsed.highContrast === 'boolean' ? parsed.highContrast : defaultSettings.highContrast,
     };
   } catch {
     return defaultSettings;
