@@ -4,15 +4,28 @@ import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import * as Haptics from './haptics';
 
 import { endlessPuzzle } from '../engine/daily';
+import {
+  bankAfterHint,
+  bankAfterSkip,
+  bankAfterSolve,
+  HINT_EVERY,
+  MAX_HINTS,
+  nextRank,
+  rankedUp,
+  rankFor,
+  startBank,
+  type HintBank,
+} from '../engine/ranks';
 import { theme } from './theme';
 import { PuzzleBoard } from './PuzzleBoard';
 import { Button } from './components/Button';
 
-/** Starting clock, and the swing for each solve, skip and hint. */
+/** Starting clock, and the swing for each solve and skip. */
 const START_MS = 90_000;
 const SOLVE_BONUS_MS = 12_000;
 const SKIP_PENALTY_MS = 10_000;
-const HINT_PENALTY_MS = 10_000;
+/** How long the "+1 hint" note stays up. */
+const EARNED_NOTE_MS = 1600;
 
 interface Props {
   best: number;
@@ -32,6 +45,8 @@ export function EndlessScreen({ best, onEnd, onExit }: Props) {
   const [remaining, setRemaining] = useState(START_MS);
   const [over, setOver] = useState(false);
   const [paused, setPaused] = useState(false);
+  const [bank, setBank] = useState<HintBank>(startBank);
+  const [earnedNote, setEarnedNote] = useState(0);
 
   // Guards against onEnd firing twice if the timer and a solve race.
   const ended = useRef(false);
@@ -90,17 +105,18 @@ export function EndlessScreen({ best, onEnd, onExit }: Props) {
     return () => sub.remove();
   }, []);
 
-  // Hints cost time rather than being rationed: in a timed mode the clock is
-  // already the limiter, and a second currency would just be noise.
+  // Hints come from a bank: three to start, one more for every five solves
+  // in a row. Going deeper is how you earn help, which gives a run a shape.
   const handleUseHint = useCallback(() => {
     if (ended.current) return;
-    const next = deadline - HINT_PENALTY_MS;
-    if (next <= Date.now()) {
-      endGame();
-      return;
-    }
-    setDeadline(next);
-  }, [deadline, endGame]);
+    setBank((b) => bankAfterHint(b) ?? b);
+  }, []);
+
+  useEffect(() => {
+    if (earnedNote === 0) return;
+    const id = setTimeout(() => setEarnedNote(0), EARNED_NOTE_MS);
+    return () => clearTimeout(id);
+  }, [earnedNote]);
 
   // Leaving mid-run still banks the score: quitting on a personal best and
   // losing it would be worse than not having the mode.
@@ -112,11 +128,20 @@ export function EndlessScreen({ best, onEnd, onExit }: Props) {
     onExit();
   }, [onEnd, onExit]);
 
+  const bankRef = useRef(bank);
+  bankRef.current = bank;
+
   const handleSolved = useCallback(() => {
     if (ended.current) return;
     setScore((s) => s + 1);
     setDeadline((d) => d + SOLVE_BONUS_MS);
     setIndex((i) => i + 1);
+    const { bank: next, earned } = bankAfterSolve(bankRef.current);
+    setBank(next);
+    if (earned) {
+      setEarnedNote((n) => n + 1);
+      void Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
+    }
   }, []);
 
   const handleSkip = useCallback(() => {
@@ -128,6 +153,7 @@ export function EndlessScreen({ best, onEnd, onExit }: Props) {
     }
     setDeadline(next);
     setIndex((i) => i + 1);
+    setBank(bankAfterSkip);
     void Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium);
   }, [deadline, endGame]);
 
@@ -136,6 +162,10 @@ export function EndlessScreen({ best, onEnd, onExit }: Props) {
 
   if (over) {
     const isBest = score > bestAtStart;
+    const best = Math.max(bestAtStart, score);
+    const rank = rankFor(best);
+    const upNow = rankedUp(bestAtStart, score);
+    const next = nextRank(best);
     return (
       <View style={[styles.wrap, styles.gameOver, { paddingTop: insets.top, paddingBottom: insets.bottom + theme.space(6) }]}>
         <Text style={styles.overTitle}>Time</Text>
@@ -146,8 +176,20 @@ export function EndlessScreen({ best, onEnd, onExit }: Props) {
         {isBest ? (
           <Text style={styles.newBest}>★  NEW BEST</Text>
         ) : (
-          <Text style={styles.oldBest}>Best {Math.max(bestAtStart, score)}</Text>
+          <Text style={styles.oldBest}>Best {best}</Text>
         )}
+        <View
+          style={[styles.rankCard, upNow && styles.rankCardUp]}
+          accessible
+          accessibilityLiveRegion="polite"
+          accessibilityLabel={`${upNow ? 'Rank up. ' : ''}${rank ? `Rank ${rank.name}.` : 'No rank yet.'} ${next ? `${next.needed} more in one run for ${next.rank.name}.` : 'Top rank reached.'}`}
+        >
+          {upNow ? <Text style={styles.rankUp}>RANK UP</Text> : null}
+          <Text style={[styles.rankName, !rank && styles.rankNone]}>{rank ? rank.name : 'Unranked'}</Text>
+          <Text style={styles.rankNext}>
+            {next ? `${next.needed} more in one run for ${next.rank.name}` : 'Top rank. Nothing left but your own best.'}
+          </Text>
+        </View>
         <View style={styles.overActions}>
           <Button label="Done" variant="primary" onPress={handleExit} />
         </View>
@@ -172,6 +214,14 @@ export function EndlessScreen({ best, onEnd, onExit }: Props) {
         <Text style={styles.score}>{score}</Text>
       </View>
 
+      <Text style={[styles.bankLine, earnedNote > 0 && styles.bankLineEarned]} accessibilityLiveRegion="polite">
+        {earnedNote > 0
+          ? '+1 hint'
+          : bank.hints >= MAX_HINTS
+            ? `Hint bank full · ${bank.hints}`
+            : `${HINT_EVERY - bank.inRow} in a row for +1 hint`}
+      </Text>
+
       <ScrollView
         contentContainerStyle={[styles.body, { paddingBottom: insets.bottom + theme.space(6) }]}
         showsVerticalScrollIndicator={false}
@@ -182,8 +232,8 @@ export function EndlessScreen({ best, onEnd, onExit }: Props) {
           onSolved={handleSolved}
           onSkip={handleSkip}
           skipLabel={`Skip −${SKIP_PENALTY_MS / 1000}s`}
-          hintsLeft={Number.MAX_SAFE_INTEGER}
-          hintLabel={`Hint −${HINT_PENALTY_MS / 1000}s`}
+          hintsLeft={bank.hints}
+          hintLabel={bank.hints > 0 ? `Hint · ${bank.hints}` : 'No hints'}
           onUseHint={handleUseHint}
         />
       </ScrollView>
@@ -250,4 +300,29 @@ const styles = StyleSheet.create({
     marginTop: theme.space(5),
   },
   overActions: { alignSelf: 'stretch', marginTop: theme.space(10) },
+  bankLine: {
+    color: theme.color.textFaint,
+    fontSize: 12,
+    fontWeight: '700',
+    textAlign: 'center',
+    paddingBottom: theme.space(1),
+  },
+  bankLineEarned: { color: theme.color.accent },
+  rankCard: {
+    alignSelf: 'stretch',
+    alignItems: 'center',
+    marginTop: theme.space(6),
+    paddingVertical: theme.space(4),
+    paddingHorizontal: theme.space(5),
+    borderRadius: theme.radius.lg,
+    borderWidth: 1,
+    borderColor: theme.color.border,
+    backgroundColor: theme.color.surfaceHigh,
+    gap: theme.space(1),
+  },
+  rankCardUp: { borderColor: theme.color.gold },
+  rankUp: { color: theme.color.gold, fontSize: 11, fontWeight: '900', letterSpacing: 3 },
+  rankName: { color: theme.color.text, fontSize: 24, fontWeight: '900' },
+  rankNone: { color: theme.color.textDim },
+  rankNext: { color: theme.color.textDim, fontSize: 13, fontWeight: '600', textAlign: 'center' },
 });

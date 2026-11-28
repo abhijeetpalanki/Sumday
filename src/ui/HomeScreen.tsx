@@ -5,6 +5,7 @@ import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { theme } from './theme';
 import { Button } from './components/Button';
 import { InstallHint } from './components/InstallHint';
+import { nextRank, rankFor } from '../engine/ranks';
 import { effectiveStreak, type DailyProgress, type Stats } from '../state/storage';
 
 interface Props {
@@ -34,6 +35,14 @@ export function HomeScreen({
 }: Props) {
   const insets = useSafeAreaInsets();
   const streak = effectiveStreak(stats, todayKey);
+
+  const rank = rankFor(stats.endlessBest);
+  const next = nextRank(stats.endlessBest);
+  const endlessSub =
+    stats.endlessGames === 0
+      ? 'Beat the clock, earn a rank'
+      : [rank ? rank.name : `Best ${stats.endlessBest}`, next ? `${next.needed} to ${next.rank.name}` : 'Top rank']
+          .join(' · ');
 
   const done = progress.results.filter((r) => r !== null).length;
   const solved = progress.results.filter((r) => r?.status === 'solved').length;
@@ -78,7 +87,7 @@ export function HomeScreen({
         />
         <Button
           label="Endless"
-          sublabel={stats.endlessBest > 0 ? `Best ${stats.endlessBest}` : 'Beat the clock'}
+          sublabel={endlessSub}
           onPress={onPlayEndless}
           style={styles.secondary}
         />

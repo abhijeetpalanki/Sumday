@@ -2,6 +2,7 @@ import { ScrollView, StyleSheet, Text, View } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 
 import { theme } from './theme';
+import { nextRank, rankFor } from '../engine/ranks';
 import { Button } from './components/Button';
 import { effectiveStreak, type Stats } from '../state/storage';
 
@@ -14,6 +15,12 @@ interface Props {
 export function StatsScreen({ stats, todayKey, onExit }: Props) {
   const insets = useSafeAreaInsets();
   const streak = effectiveStreak(stats, todayKey);
+
+  const endlessNext = nextRank(stats.endlessBest);
+  const rankHint = endlessNext
+    ? `${endlessNext.needed} more in one Endless run for ${endlessNext.rank.name}`
+    : 'Top rank reached';
+  const rankText = `Endless rank ${rankFor(stats.endlessBest)?.name ?? 'none yet'}. ${rankHint}.`;
 
   const solveRate = stats.played > 0 ? Math.round((stats.totalSolved / (stats.played * 5)) * 100) : 0;
   const maxBar = Math.max(1, ...stats.distribution);
@@ -64,6 +71,11 @@ export function StatsScreen({ stats, todayKey, onExit }: Props) {
         <Cell value={String(stats.totalHints)} label={'hints\nused'} />
       </View>
 
+      <View style={styles.rankRow} accessible accessibilityLabel={rankText}>
+        <Text style={styles.rankName}>{rankFor(stats.endlessBest)?.name ?? 'Unranked'}</Text>
+        <Text style={styles.rankHint}>{rankHint}</Text>
+      </View>
+
       <Button label="Back" variant="ghost" onPress={onExit} style={styles.back} />
     </ScrollView>
   );
@@ -89,6 +101,18 @@ const styles = StyleSheet.create({
     marginBottom: theme.space(7),
   },
   row: { flexDirection: 'row', justifyContent: 'space-between' },
+  rankRow: {
+    marginTop: theme.space(6),
+    paddingVertical: theme.space(3),
+    paddingHorizontal: theme.space(4),
+    borderRadius: theme.radius.md,
+    borderWidth: 1,
+    borderColor: theme.color.border,
+    backgroundColor: theme.color.surfaceHigh,
+    gap: 2,
+  },
+  rankName: { color: theme.color.text, fontSize: 16, fontWeight: '900' },
+  rankHint: { color: theme.color.textDim, fontSize: 13, fontWeight: '600' },
   cell: { alignItems: 'center', flex: 1 },
   cellValue: {
     color: theme.color.text,

@@ -72,6 +72,16 @@ export function HowToPlay({ visible, onClose }: Props) {
                 172 + 2 = 174{'  '}✓
               </Text>
             </View>
+
+            <View style={styles.divider} />
+
+            <Text style={styles.sectionTitle}>Endless</Text>
+            <Text style={styles.body}>
+              Solve as many as you can before the clock runs out. Each solve adds 12 seconds and a
+              skip costs 10. You start with three hints and earn one more for every five solves in a
+              row. Your best run sets your rank: Bronze at 5, Silver 10, Gold 15, Platinum 20 and
+              Diamond 30. Ranks never drop.
+            </Text>
           </ScrollView>
 
           <Button label="Got it" variant="primary" onPress={onClose} style={styles.cta} />
