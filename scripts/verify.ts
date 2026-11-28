@@ -22,6 +22,7 @@ import {
 } from '../src/engine/puzzle';
 import { dailySet, endlessPuzzle, dayKey, puzzleNumber, daysBetween } from '../src/engine/daily';
 import { makeRng } from '../src/engine/rng';
+import { planReminders, REMINDER_DAYS_AHEAD, formatHour } from '../src/reminderPlan';
 
 declare const process: { exit(code: number): never };
 
@@ -278,6 +279,35 @@ console.log('\nSumday engine verification\n' + '='.repeat(46));
 }
 
 /* Report ----------------------------------------------------------------- */
+/* Daily reminder plan -------------------------------------------------- */
+{
+  const morning = new Date(2026, 11, 3, 9, 30);
+  const late = new Date(2026, 11, 3, 21, 0);
+
+  const a = planReminders({ hour: 20, playedToday: false, streak: 5, now: morning });
+  check('plans a week of reminders', a.length === REMINDER_DAYS_AHEAD, String(a.length));
+  check('first reminder is today at 8 PM', a[0].at.getDate() === 3 && a[0].at.getHours() === 20);
+  check('first reminder names the streak', a[0].title.includes('5-day streak'));
+  check('later reminders stay generic', a.slice(1).every((r) => !r.title.includes('streak')));
+
+  const b = planReminders({ hour: 20, playedToday: true, streak: 5, now: morning });
+  check('played today skips today', b.length === REMINDER_DAYS_AHEAD - 1 && b[0].at.getDate() === 4);
+  check('tomorrow reminder keeps the live streak', b[0].title.includes('5-day streak'));
+
+  const c = planReminders({ hour: 20, playedToday: false, streak: 5, now: late });
+  check('past hour skips today', c[0].at.getDate() === 4);
+  check('streak lapsed by tomorrow if today unplayed', !c[0].title.includes('streak'));
+
+  const d = planReminders({ hour: 8, playedToday: false, streak: 0, now: morning });
+  check('no streak, generic copy', d.every((r) => r.title === 'Today’s Sumday is ready'));
+
+  const e = planReminders({ hour: 20, playedToday: true, streak: 2, now: new Date(2026, 11, 31, 10) });
+  check('reminders cross the year boundary', e[0].at.getFullYear() === 2027 && e[0].at.getMonth() === 0);
+  check('hours format', formatHour(8) === '8 AM' && formatHour(12) === '12 PM' && formatHour(20) === '8 PM');
+
+  console.log('daily reminder plan ..................... ok');
+}
+
 console.log('='.repeat(46));
 if (failures === 0) {
   console.log('ALL CHECKS PASSED\n');
