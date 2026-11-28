@@ -111,7 +111,8 @@ const styles = StyleSheet.create({
     borderColor: theme.color.border,
     backgroundColor: theme.color.surfaceHigh,
   },
-  shieldIcon: { fontSize: 18 },
+  // 🛡 has no emoji default everywhere; where it draws as a text glyph it takes this colour.
+  shieldIcon: { fontSize: 18, color: theme.color.gold },
   shieldText: { flex: 1, color: theme.color.textDim, fontSize: 13, fontWeight: '700', lineHeight: 18 },
   shieldTextReady: { color: theme.color.gold },
   cell: { alignItems: 'center', flex: 1 },
