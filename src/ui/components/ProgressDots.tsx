@@ -2,6 +2,7 @@ import React from 'react';
 import { StyleSheet, View } from 'react-native';
 import { theme } from '../theme';
 import { slotEmoji } from '../../share';
+import { useSettings } from '../SettingsContext';
 import type { SlotResult } from '../../state/storage';
 
 interface Props {
@@ -12,6 +13,8 @@ interface Props {
 
 /** Five dots: the run's shape at a glance, mirroring the share grid's colours. */
 function ProgressDotsBase({ results, active }: Props) {
+  const { settings } = useSettings();
+  const contrast = settings.highContrast;
   return (
     <View style={styles.row} accessibilityLabel={`Puzzle ${active + 1} of ${results.length}`}>
       {results.map((r, i) => {
@@ -24,8 +27,8 @@ function ProgressDotsBase({ results, active }: Props) {
             key={i}
             style={[
               styles.dot,
-              solvedAtPar && styles.atPar,
-              solvedOverPar && styles.overPar,
+              solvedAtPar && (contrast ? styles.atParContrast : styles.atPar),
+              solvedOverPar && (contrast ? styles.overParContrast : styles.overPar),
               r?.status === 'skipped' && styles.skipped,
               i === active && styles.active,
             ]}
@@ -46,6 +49,8 @@ const styles = StyleSheet.create({
   },
   atPar: { backgroundColor: theme.color.success },
   overPar: { backgroundColor: theme.color.gold },
+  atParContrast: { backgroundColor: theme.color.contrastPar },
+  overParContrast: { backgroundColor: theme.color.contrastOver },
   skipped: { backgroundColor: theme.color.textFaint },
   active: { width: 22, backgroundColor: theme.color.accent },
 });

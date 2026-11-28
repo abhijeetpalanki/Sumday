@@ -43,6 +43,13 @@ export function SettingsScreen({ onHowTo, onExit }: Props) {
         />
         <View style={styles.divider} />
         <ToggleRow
+          label="High-contrast colours"
+          sub="Results and the share grid use orange and blue instead of green and yellow. Easier to tell apart with colour blindness."
+          value={settings.highContrast}
+          onChange={(highContrast) => update({ highContrast })}
+        />
+        <View style={styles.divider} />
+        <ToggleRow
           label="Haptics"
           sub="Vibration on taps, merges and mistakes."
           value={settings.haptics}
